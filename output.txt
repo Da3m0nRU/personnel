@@ -1,4 +1,171 @@
-# gui/main_window.py
+File directory: config.py, and it contains following code: 
+# config.py
+import os
+from dotenv import load_dotenv
+from pathlib import Path
+
+load_dotenv()  # загрузили .env
+
+BASE_DIR = Path(__file__).parent  # Путь к папке, где config
+ASSETS_PATH = BASE_DIR / "assets" / "img"  # относительно config
+
+# Берем из .env, если есть, иначе default
+DATABASE_PATH = os.getenv("DATABASE_PATH", "kadry.db")
+DEFAULT_USERNAME = os.getenv("DEFAULT_USERNAME", "Пользователь")
+DEFAULT_USER_ROLE = os.getenv("DEFAULT_USER_ROLE", "Сотрудник")
+
+# Цвета
+MAIN_BG_COLOR = "#F0F4F8"
+LEFT_PANEL_BG_COLOR = "#FFFFFF"
+BUTTON_BG_COLOR = "#FFFFFF"
+BUTTON_ACTIVE_BG_COLOR = "#00B275"
+BUTTON_HOVER_COLOR = "#EEEEEE"
+BUTTON_TEXT_COLOR = "#333333"
+BUTTON_ACTIVE_TEXT_COLOR = "#FFFFFF"
+BUTTON_DISABLED_TEXT_COLOR = "#969BA0"  # Для disabled кнопок (если будут)
+LABEL_TEXT_COLOR = "#464154"
+FOOTER_TEXT_COLOR = "#969BA0"
+ACCENT_COLOR = "#00B074"  # Зеленый, для акцентов (прямоугольник и т.д.)
+
+# Размеры
+LEFT_PANEL_WIDTH = 344
+WINDOW_WIDTH = 1247
+WINDOW_HEIGHT = 1022
+BUTTON_WIDTH = 250
+BUTTON_HEIGHT = 54
+BUTTON_X = 62
+BUTTON_Y_START = 180
+BUTTON_Y_SPACING = 15
+AVATAR_SIZE = (48, 48)
+
+# Шрифты. Можно оставить так, можно задать в .env
+DEFAULT_FONT = ("Arial", 18)
+BOLD_FONT = ("Arial", 18, "bold")
+TITLE_BOLD_FONT = ("Arial", 42, "bold")
+FOOTER_FONT = ("Arial", 12)
+
+# Пути. Если нужно вынести пути к иконкам
+# ASSETS_PATH перенесено в utils
+
+
+File directory: main.py, and it contains following code: 
+# main.py
+import tkinter as tk
+import customtkinter as ctk
+from gui.main_window import MainWindow
+from db.database import Database
+
+
+def main():
+    # ctk.set_appearance_mode("light")  # Перенес в main_window.py
+    # ctk.set_default_color_theme("green")
+
+    db = Database()
+    if db.conn is None:  # Если не удалось подключиться к базе данных
+        return  # ... завершаем работу
+
+    root = ctk.CTk()
+    app = MainWindow(root, db)  # !!! Передаем объект базы данных в MainWindow
+    root.mainloop()
+
+    db.close()  # Закрываем соединение с базой данных при закрытии приложения
+
+
+if __name__ == "__main__":
+    main()
+
+
+File directory: main1.py, and it contains following code: 
+import os
+
+
+def merge_cs_files(folder_path, output_file):
+    with open(output_file, 'w', encoding='utf-8') as out_f:  # Specify encoding here
+        for root, dirs, files in os.walk(folder_path):
+            for file_name in files:
+                if file_name.endswith('.py'):
+                    file_path = os.path.join(root, file_name)
+                    # Получаем относительный путь к файлу относительно folder_path
+                    relative_path = os.path.relpath(file_path, folder_path)
+                    # Удаляем дублирующуюся часть пути, если она есть
+                    relative_path = relative_path.replace(
+                        relative_path.split(os.sep)[0] + os.sep, '', 1)
+                    with open(file_path, 'r', encoding='utf-8') as in_f:  # Specify encoding here
+                        # Записываем относительный путь и название файла
+                        out_f.write(
+                            f"File directory: {relative_path}, and it contains following code: \n")
+                        out_f.write(in_f.read())
+                        out_f.write("\n\n")
+
+
+# Укажите путь к папке, содержащей .cs файлы, и имя выходного файла
+folder_path = "G:/вуз мгимо/3 курс/Программный Проект/Project"
+output_file = "output.txt"
+
+merge_cs_files(folder_path, output_file)
+
+
+File directory: database.py, and it contains following code: 
+# db/database.py
+import sqlite3
+# !!!  Используем config
+from config import DATABASE_PATH
+
+
+class Database:
+    def __init__(self, db_path=DATABASE_PATH):  # указываем по умолчанию
+        self.conn = None  # Инициализируем, чтобы IDE не ругалась
+        self.cursor = None
+        try:
+            self.conn = sqlite3.connect(db_path)
+            self.cursor = self.conn.cursor()
+        except sqlite3.Error as e:
+            # Или messagebox из tkinter
+            print(f"Database connection error: {e}")
+            # В реальном приложении здесь нужно предпринять действия
+
+    def execute_query(self, query, params=None):
+        try:
+            if params:
+                self.cursor.execute(query, params)
+            else:
+                self.cursor.execute(query)
+            self.conn.commit()
+            return True  # !!!
+        except sqlite3.Error as e:
+            # Подробный вывод
+            print(f"SQL error: {e}, query: {query}, params: {params}")
+            self.conn.rollback()
+            return False
+
+    def fetch_all(self, query, params=None):
+        try:
+            if params:
+                self.cursor.execute(query, params)
+            else:
+                self.cursor.execute(query)
+            return self.cursor.fetchall()  # !!!
+        except sqlite3.Error as e:
+            print(f"SQL error: {e}, query: {query}, params: {params}")
+            return None
+
+    def fetch_one(self, query, params=None):
+        try:
+            if params:
+                self.cursor.execute(query, params)
+            else:
+                self.cursor.execute(query)
+            return self.cursor.fetchone()  # !!!
+        except sqlite3.Error as e:
+            print(f"SQL error: {e}, query: {query}, params: {params}")
+            return None
+
+    def close(self):
+        if self.conn:
+            self.conn.close()
+
+
+File directory: main_window.py, and it contains following code: 
 import customtkinter as ctk
 from tkinter import Label, PhotoImage
 from PIL import Image, ImageTk
@@ -7,14 +174,7 @@ from config import *
 import random
 import threading
 import time
-import colorsys
-# Импортируем классы наших вкладок
-from .employees_frame import EmployeesFrame
-# from .absences_frame import AbsencesFrame
-# from .events_frame import EventsFrame
-# from .reports_frame import ReportsFrame
-# from .users_frame import UsersFrame
-# from .dashboard_frame import DashboardFrame
+import colorsys  # !!!  Добавляем импорт
 
 
 class MainWindow(ctk.CTkFrame):
@@ -24,7 +184,7 @@ class MainWindow(ctk.CTkFrame):
         self.db = db
         self.master.geometry(f"{WINDOW_WIDTH}x{WINDOW_HEIGHT}")
         self.master.title("АИС Кадры")
-        # self.master.resizable(False, False)
+        self.master.resizable(False, False)
         self.configure(fg_color=MAIN_BG_COLOR)  # !!!
 
         #  Шрифты
@@ -36,7 +196,6 @@ class MainWindow(ctk.CTkFrame):
         self.rgb_mode = False  # Флаг RGB-режима
         self.rgb_thread = None  # Поток
         self.create_widgets()
-        self.current_frame = None  # !!! Добавляем атрибут для хранения текущего фрейма
 
     def create_widgets(self):
         # --- Левая панель (белая) ---
@@ -218,20 +377,6 @@ class MainWindow(ctk.CTkFrame):
             y=180.0 + button_number * (54 + 15)
         )
 
-        # Вызываем метод для отображения нужной вкладки
-        if button_number == 0:
-            self.show_dashboard()
-        elif button_number == 1:
-            self.show_employees()
-        elif button_number == 2:
-            self.show_events()
-        elif button_number == 3:
-            self.show_absences()
-        elif button_number == 4:
-            self.show_reports()
-        elif button_number == 5:
-            self.show_users()
-
     def toggle_rgb_mode(self):
         self.rgb_mode = not self.rgb_mode
         if self.rgb_mode:
@@ -259,38 +404,46 @@ class MainWindow(ctk.CTkFrame):
 
             time.sleep(0.05)  # Задержка (скорость переливания)
 
-    def clear_content_frame(self):
-        # Удаляем все виджеты из content_frame
-        for widget in self.content_frame.winfo_children():
-            widget.destroy()
-
-    def show_frame(self, frame_class):
-        # Сначала удаляем текущий фрейм, если он есть
-        if self.current_frame is not None:
-            self.current_frame.destroy()
-        # Создаем новый фрейм
-        self.current_frame = frame_class(self.content_frame, self.db)
-        self.current_frame.pack(fill="both", expand=True)
+     # Заглушки
 
     def show_dashboard(self):
-        # self.show_frame(DashboardFrame)
-        pass
+        print("Show Dashboard")
 
     def show_employees(self):
-        self.show_frame(EmployeesFrame)
+        print("Show Employees")
 
     def show_events(self):
-        # self.show_frame(EventsFrame)
-        pass
+        print("Show Events")
 
     def show_absences(self):
-        # self.show_frame(AbsencesFrame)
-        pass
+        print("Show Absences")
 
     def show_reports(self):
-        # self.show_frame(ReportsFrame)
-        pass
+        print("Show Reports")
 
     def show_users(self):
-        # self.show_frame(UsersFrame)
-        pass
+        print("Показать юзеров")
+
+
+File directory: utils.py, and it contains following code: 
+# gui/utils.py
+from pathlib import Path
+from PIL import Image
+import customtkinter as ctk
+from config import ASSETS_PATH  # берём из config
+
+# from config import ASSETS_PATH  # !!!  Используем из config
+
+# !!!  Больше не нужно
+# _ASSETS_PATH = Path(__file__).parent.parent.resolve() / "assets/frame0"
+
+
+def relative_to_assets(path: str) -> Path:
+    return ASSETS_PATH / Path(path)
+
+
+def load_icon(name: str, size=(24, 24)):
+    img = Image.open(relative_to_assets(name))
+    return ctk.CTkImage(img, size=size)
+
+

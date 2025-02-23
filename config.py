@@ -15,6 +15,7 @@ DEFAULT_USER_ROLE = os.getenv("DEFAULT_USER_ROLE", "Сотрудник")
 
 # Цвета
 MAIN_BG_COLOR = "#F0F4F8"
+SECONDARY_BG_COLOR = "#00B275"
 LEFT_PANEL_BG_COLOR = "#FFFFFF"
 BUTTON_BG_COLOR = "#FFFFFF"
 BUTTON_ACTIVE_BG_COLOR = "#00B275"
@@ -28,7 +29,7 @@ ACCENT_COLOR = "#00B074"  # Зеленый, для акцентов (прямо�
 
 # Размеры
 LEFT_PANEL_WIDTH = 344
-WINDOW_WIDTH = 1247
+WINDOW_WIDTH = 1400
 WINDOW_HEIGHT = 1022
 BUTTON_WIDTH = 250
 BUTTON_HEIGHT = 54
