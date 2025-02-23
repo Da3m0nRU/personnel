@@ -121,7 +121,7 @@ class MainWindow(ctk.CTkFrame):
         #  Создаем фрейм-контейнер
         self.user_info_frame = ctk.CTkFrame(
             self.left_frame, fg_color="transparent")
-        self.user_info_frame.place(x=20, y=850)  # Размещаем сам фрейм
+        self.user_info_frame.place(x=20, y=900)  # Размещаем сам фрейм
 
         #  Изображение (Pillow)
         avatar_image = Image.open(relative_to_assets("image_1.png"))
@@ -176,6 +176,7 @@ class MainWindow(ctk.CTkFrame):
         # --- Чекбокс RGB-режима ---
         self.rgb_checkbox = ctk.CTkCheckBox(
             self.left_frame,
+            text_color=BUTTON_TEXT_COLOR,
             text="RGB Режим",
             command=self.toggle_rgb_mode,
             onvalue=True,
@@ -183,7 +184,7 @@ class MainWindow(ctk.CTkFrame):
             checkbox_width=18,  # !!!  Размеры
             checkbox_height=18
         )
-        self.rgb_checkbox.place(x=20, y=800)
+        self.rgb_checkbox.place(x=20, y=850)
 
         self.button_click(0)
 

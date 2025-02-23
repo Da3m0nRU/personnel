@@ -117,3 +117,12 @@ CREATE TABLE Users (
     FOREIGN KEY (EmployeePersonnelNumber) REFERENCES Employees(PersonnelNumber),
     FOREIGN KEY (RoleID) REFERENCES Roles(ID)
 );
+
+-- Таблица "Связь должностей и подразделений"
+CREATE TABLE PositionDepartments (
+    ID INTEGER PRIMARY KEY AUTOINCREMENT,
+    PositionID INTEGER NOT NULL,
+    DepartmentID INTEGER NOT NULL,
+    FOREIGN KEY (PositionID) REFERENCES Positions(ID),
+    FOREIGN KEY (DepartmentID) REFERENCES Departments(ID)
+);

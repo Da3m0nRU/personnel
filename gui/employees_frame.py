@@ -1,25 +1,30 @@
 # gui/employees_frame.py
+
 import customtkinter as ctk
-from config import *  # Импортируем все из config
+from config import *
 from tksheet import Sheet
 from .utils import load_icon
+from .add_employee_dialog import AddEmployeeDialog
+from .edit_employee_dialog import EditEmployeeDialog  # !!! импорт
+from tkinter import messagebox
 
 
 class EmployeesFrame(ctk.CTkFrame):
     def __init__(self, master, db):
         super().__init__(master, fg_color=MAIN_BG_COLOR)
         self.db = db
-        # Пагинация
         self.current_page = 1
-        self.rows_per_page = 10  # Количество строк на странице
-        self.total_rows = 0      # Общее количество строк (будет обновляться)
-        self.data = []           # !!! Добавляем атрибут для хранения данных
-
+        self.rows_per_page = 10
+        self.total_rows = 0
+        self.all_data = []  # !!!
+        self.data = []
         self.create_widgets()
-        self.display_data()  # !!! Отображаем данные при инициализации
+        self.load_data()
+        self.display_data()
 
     def create_widgets(self):
-        # Заголовок (все большими буквами, изменен шрифт и размер, выравнивание по левому краю)
+        section_font = ("Arial", 20, "bold")
+
         title_label = ctk.CTkLabel(
             self,
             text="СОТРУДНИКИ",
@@ -28,9 +33,7 @@ class EmployeesFrame(ctk.CTkFrame):
             anchor="w"
         )
         title_label.place(x=27, y=40)
-
-        # Кнопка "Новая запись"
-        self.add_button = ctk.CTkButton(
+        self.add_button = ctk.CTkButton(  # Добавление сотрудника
             self,
             text="  НОВАЯ ЗАПИСЬ",
             font=("Arial", 18, "bold"),
@@ -46,10 +49,45 @@ class EmployeesFrame(ctk.CTkFrame):
             image=load_icon("plus.png", size=(20, 20)),
             compound="left"
         )
-
         self.add_button.place(x=27, y=139)
 
-        # Поле поиска
+        self.edit_button = ctk.CTkButton(  # !!! Кнопка "Редактировать"
+            self,
+            text="  ИЗМЕНИТЬ",
+            font=("Arial", 18, "bold"),
+            command=self.edit_employee,  # !!!
+            fg_color=BUTTON_BG_COLOR,
+            text_color="#FF8C00",  # Оранжевый цвет
+            border_width=2,
+            border_color="#FF8C00",
+            hover_color="#FFB347",  # Более светлый оранжевый при наведении
+            corner_radius=12,
+            width=180,
+            height=40,
+            image=load_icon("edit.png", size=(20, 20)),
+            compound="left"
+        )
+        # !!! Размещаем после кнопки "Удалить" с отступом
+        self.edit_button.place(x=27 + 220 + 27 + 150 + 20, y=139)
+        self.delete_button = ctk.CTkButton(
+            self,
+            text="  УДАЛИТЬ",
+            font=("Arial", 18, "bold"),
+            command=self.delete_employee,
+            fg_color=BUTTON_BG_COLOR,
+            text_color="#FF4136",  # Красный цвет
+            border_width=2,
+            border_color="#FF4136",
+            hover_color=BUTTON_HOVER_COLOR,
+            corner_radius=12,
+            width=150,
+            height=40,
+            # !!!  Добавь иконку delete.png
+            image=load_icon("cross.png", size=(20, 20)),
+            compound="left"
+        )
+        self.delete_button.place(x=27 + 220 + 27, y=139)
+
         search_entry_width = 257
         self.search_entry = ctk.CTkEntry(
             self,
@@ -61,23 +99,21 @@ class EmployeesFrame(ctk.CTkFrame):
             placeholder_text_color="gray",
             fg_color="white"
         )
-        self.search_entry.place(x=27 + 220 + 27, y=139)
+        self.search_entry.place(x=27 + 220 + 27 + 150 + 20 + 180 + 20, y=139)
+        self.search_entry.bind("<KeyRelease>", self.search)
 
-        # Wrapper для таблицы
         self.table_wrapper = ctk.CTkFrame(
             self, fg_color="white")
         self.table_wrapper.place(x=27, y=195)
 
-        # Создаем таблицу (Sheet)
         self.table = Sheet(self.table_wrapper,
                            width=1136,
-                           height=300
+                           height=450,
                            )
         self.table.pack(fill="both", expand=True, padx=10, pady=10)
         self.table.headers(
             ["Таб. номер", "Фамилия", "Имя", "Отчество", "Дата рожд.", "Пол", "Должность", "Отдел", "Состояние"])
 
-        # self.table.set_all_row_heights(40)  # Высота всех строк
         self.table.enable_bindings(("single_select",
                                     "row_select",
                                     "column_width_resize",
@@ -99,13 +135,11 @@ class EmployeesFrame(ctk.CTkFrame):
                                     "edit_cell"
                                     ))
 
-        # Контейнер для пагинации
         self.pagination_frame = ctk.CTkFrame(
             self.table_wrapper,  fg_color="transparent")
         self.pagination_frame.pack(
             side="bottom", fill="x", padx=10, pady=(0, 10))
 
-        # Кнопки пагинации
         self.prev_button = ctk.CTkButton(
             self.pagination_frame,
             text="<",
@@ -134,7 +168,6 @@ class EmployeesFrame(ctk.CTkFrame):
             border_color="#CED4DA",
         )
 
-        # Label для текущей страницы
         self.page_label = ctk.CTkLabel(
             self.pagination_frame,
             text="Страница 1",
@@ -142,24 +175,70 @@ class EmployeesFrame(ctk.CTkFrame):
             text_color="#000000"
         )
 
-        # Размещаем кнопки и label внутри pagination_frame
         self.prev_button.pack(side="left", padx=(0, 5))
         self.page_label.pack(side="left", padx=5)
         self.next_button.pack(side="left", padx=(5, 0))
+    #!!!! Методы
 
     def add_employee(self):
-        print("Добавить сотрудника")
+        dialog = AddEmployeeDialog(self, self.db)
+        dialog.wait_window()
+        self.load_data()  # !!!
+        self.display_data()  # !!!
+
+    # !!!  Метод для редактирования сотрудника
+    def edit_employee(self):
+        selected_row = self.table.get_selected_rows()
+        if not selected_row:
+            messagebox.showerror(
+                "Ошибка", "Выберите сотрудника для редактирования!")
+            return
+
+        selected_row_index = list(selected_row)[0]
+        personnel_number = self.table.get_cell_data(selected_row_index, 0)
+
+        # Получаем *все* данные о сотруднике
+        employee_data = self.db.get_employee_by_personnel_number(
+            personnel_number)
+        if employee_data is None:
+            messagebox.showerror(
+                "Ошибка", "Не удалось получить данные о сотруднике!")
+            return
+
+        # Открываем диалог редактирования, передавая данные
+        dialog = EditEmployeeDialog(self, self.db, employee_data)
+        dialog.wait_window()
+        self.load_data()  # !!!
+        self.display_data()  # !!!
+
+    def delete_employee(self):
+        selected_row = self.table.get_selected_rows()
+
+        if not selected_row:
+            messagebox.showerror("Ошибка", "Выберите сотрудника для удаления!")
+            return
+
+        selected_row_index = list(selected_row)[0]
+        personnel_number = self.table.get_cell_data(selected_row_index, 0)
+
+        if messagebox.askyesno("Подтверждение", f"Вы уверены, что хотите удалить сотрудника с табельным номером {personnel_number}?"):
+            if self.db.delete_employee(personnel_number):
+                messagebox.showinfo("Успех", "Сотрудник удален.")
+                self.load_data()  # !!!
+                self.display_data()
+            else:
+                messagebox.showerror(
+                    "Ошибка", "Не удалось удалить сотрудника.")
 
     def prev_page(self):
-        if self.current_page > 1:  # !!! Проверяем, можно ли перейти назад
+        if self.current_page > 1:
             self.current_page -= 1
-            self.display_data()  # !!! Обновляем данные
+            self.display_data()
 
     def next_page(self):
-        # !!!  Проверяем, можно ли перейти вперед
         if self.current_page < (self.total_rows + self.rows_per_page - 1) // self.rows_per_page:
             self.current_page += 1
-            self.display_data()  # !!! Обновляем данные
+            self.display_data()
 
     def update_page_label(self):
         self.page_label.configure(text=f"Страница {self.current_page}")
@@ -171,7 +250,7 @@ class EmployeesFrame(ctk.CTkFrame):
         else:
             self.prev_button.configure(
                 state="normal", border_width=1, fg_color="transparent")
-        # !!!  Исправлено условие для последней страницы
+
         if self.current_page == (self.total_rows + self.rows_per_page - 1) // self.rows_per_page:
             self.next_button.configure(
                 state="disabled", border_width=0, fg_color="#E9ECEF")
@@ -179,64 +258,49 @@ class EmployeesFrame(ctk.CTkFrame):
             self.next_button.configure(
                 state="normal", border_width=1, fg_color="transparent")
 
-    def display_data(self):
-        # Заглушка с данными
-        data = [
-            ["1001", "Иванов", "Иван", "Иванович", "1980-05-10",
-                "Мужской", "Программист", "IT-отдел", "Работает"],
-            ["1002", "Петрова", "Мария", "Сергеевна", "1992-11-20",
-             "Женский", "Менеджер", "Отдел продаж", "Работает"],
-            ["1003", "Сидоров", "Петр", "Алексеевич", "1975-03-15",
-             "Мужской", "Бухгалтер", "Бухгалтерия", "Работает"],
-            ["1004", "Смирнова", "Анна", "Васильевна", "1988-07-22",
-             "Женский", "Юрист", "Юридический отдел", "Работает"],
-            ["1005", "Кузнецов", "Дмитрий", "Николаевич", "1995-01-18",
-             "Мужской", "Дизайнер", "IT-отдел", "Работает"],
-            ["1006", "Михайлова", "Елена", "Петровна", "1983-09-05",
-             "Женский", "Секретарь", "Отдел кадров", "Работает"],
-            ["1007", "Лебедев", "Андрей", "Викторович", "1970-12-01",
-             "Мужской", "Директор", "Администрация", "Работает"],
-            ["1008", "Соколова", "Ольга", "Игоревна", "1998-04-28",
-             "Женский", "Программист", "IT-отдел", "Работает"],
-            ["1009", "Морозов", "Сергей", "Владимирович", "1986-06-14",
-             "Мужской", "Менеджер", "Отдел продаж", "Работает"],
-            ["1010", "Новикова", "Татьяна", "Андреевна", "1978-02-09",
-             "Женский", "Бухгалтер", "Бухгалтерия", "Работает"],
-            ["1011", "Федоров", "Александр", "Михайлович", "1990-08-30",
-             "Мужской", "Юрист", "Юридический отдел", "Работает"],
-            ["1012", "Волкова", "Светлана", "Александровна", "1981-10-12",
-             "Женский", "Дизайнер", "IT-отдел", "Работает"],
-            ["1013", "Зайцев", "Максим", "Сергеевич", "1997-03-25",
-             "Мужской", "Секретарь", "Отдел кадров", "Работает"],
-            ["1014", "Павлова", "Наталья", "Дмитриевна", "1972-05-03",
-             "Женский", "Директор", "Администрация", "Работает"],
-            ["1015", "Козлов", "Владимир", "Иванович", "1989-11-07",
-             "Мужской", "Программист", "IT-отдел", "Работает"],
-            ["1016", "Белова", "Екатерина", "Алексеевна", "1984-01-19",
-             "Женский", "Менеджер", "Отдел продаж", "Работает"],
-            ["1017", "Орлов", "Денис", "Валерьевич", "1977-07-29",
-             "Мужской", "Бухгалтер", "Бухгалтерия", "Работает"],
-            ["1018", "Григорьева", "Ирина", "Сергеевна", "1993-04-16",
-             "Женский", "Юрист", "Юридический отдел", "Работает"],
-            ["1019", "Васильев", "Роман", "Андреевич", "1982-06-08",
-             "Мужской", "Дизайнер", "IT-отдел", "Работает"],
-            ["1020", "Антонова", "Юлия", "Михайловна", "1979-12-24",
-             "Женский", "Секретарь", "Отдел кадров", "Работает"],
-        ]
-        self.data = data  # !!! Сохраняем данные
-        self.total_rows = len(data)  # !!! Обновляем общее количество строк
+    def load_data(self):
+        # Получаем все данные (без пагинации)
+        self.all_data, self.total_rows = self.db.get_employees()
+        if self.all_data is None:
+            print("Ошибка при получении данных")
+            self.all_data = []  # Чтобы не было ошибки
+            self.total_rows = 0
 
-        # Вычисляем срез данных для текущей страницы
+    def search(self, event):
+        search_term = self.search_entry.get().lower()
+        self.current_page = 1
+        self.display_data(search_term)
+
+    def display_data(self, search_term=None):
+        if search_term:
+            filtered_data = []
+            for row in self.all_data:
+                if any(search_term in str(value).lower() for value in row):
+                    filtered_data.append(row)
+            self.total_rows = len(filtered_data)  # !!!
+        else:
+            filtered_data = self.all_data  # !!!
+            self.total_rows = len(self.all_data)
+
+        self.data = filtered_data
         start_index = (self.current_page - 1) * self.rows_per_page
         end_index = start_index + self.rows_per_page
         current_page_data = self.data[start_index:end_index]
 
-        # Очищаем таблицу перед отображением новых данных
-        self.table.set_sheet_data([[None for _ in range(
-            len(self.table.headers()))] for _ in range(self.table.total_rows())])
+        old_data = self.table.get_sheet_data()
 
-        # Отображаем данные
-        self.table.set_sheet_data(current_page_data)
+        # Полностью очищаем таблицу, включая данные
+        if self.table.total_rows() > 0:
+            self.table.set_sheet_data([[None for _ in range(
+                len(self.table.headers()))] for _ in range(self.table.total_rows())])
+        # self.table.set_sheet_data([[None] * len(self.table.headers())])
 
-        self.update_page_label()  # Обновляем текст метки страницы
-        self.update_buttons_state()  # Обновляем состояние кнопок
+        if current_page_data != old_data:
+            self.table.set_sheet_data(current_page_data)
+            self.table.set_column_widths(
+                [100, 150, 100, 150, 120, 100, 180, 150, 100])
+
+        self.table.refresh()
+
+        self.update_page_label()
+        self.update_buttons_state()

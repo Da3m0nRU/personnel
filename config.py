@@ -24,6 +24,7 @@ BUTTON_TEXT_COLOR = "#333333"
 BUTTON_ACTIVE_TEXT_COLOR = "#FFFFFF"
 BUTTON_DISABLED_TEXT_COLOR = "#969BA0"  # Для disabled кнопок (если будут)
 LABEL_TEXT_COLOR = "#464154"
+FORM_LABEL_TEXT_COLOR = "#FFFFFF"
 FOOTER_TEXT_COLOR = "#969BA0"
 ACCENT_COLOR = "#00B074"  # Зеленый, для акцентов (прямоугольник и т.д.)
 
