@@ -3,21 +3,34 @@ import tkinter as tk
 import customtkinter as ctk
 from gui.main_window import MainWindow
 from db.database import Database
+from config import DATABASE_PATH
+import logging
+from gui.utils import configure_logging
+from config import LOG_LEVEL, LOG_FORMAT, LOG_FILE, MAX_LOG_SIZE, BACKUP_COUNT
+
+log = logging.getLogger(__name__)
 
 
 def main():
-    # ctk.set_appearance_mode("light")  # Перенес в main_window.py
-    # ctk.set_default_color_theme("green")
+
+    # Сразу настраиваем корневой логгер при импорте config, и передаём константы!!!
+    configure_logging(LOG_LEVEL, LOG_FORMAT, LOG_FILE,
+                      MAX_LOG_SIZE, BACKUP_COUNT)
+
+    log.info("Запуск приложения")  # Начало
 
     db = Database()
-    if db.conn is None:  # Если не удалось подключиться к базе данных
-        return  # ... завершаем работу
+    if db.conn is None:
+        log.critical(
+            "Не удалось подключиться к базе данных. Завершение работы.")
+        return
 
     root = ctk.CTk()
-    app = MainWindow(root, db)  # !!! Передаем объект базы данных в MainWindow
+    app = MainWindow(root, db)
     root.mainloop()
 
-    db.close()  # Закрываем соединение с базой данных при закрытии приложения
+    db.close()
+    log.info("Приложение завершило работу.")  # Конец
 
 
 if __name__ == "__main__":
