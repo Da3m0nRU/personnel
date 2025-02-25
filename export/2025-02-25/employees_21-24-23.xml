@@ -1,0 +1,58 @@
+<?xml version='1.0' encoding='utf-8'?>
+<Employees>
+  <Employee>
+    <PersonnelNumber>12345</PersonnelNumber>
+    <LastName>Иванов</LastName>
+    <FirstName>Иван</FirstName>
+    <MiddleName>Иванович</MiddleName>
+    <BirthDate>1980-05-10</BirthDate>
+    <GenderName>Мужской</GenderName>
+    <PositionName>Программист</PositionName>
+    <DepartmentName>IT-отдел</DepartmentName>
+    <StateName>Работает</StateName>
+  </Employee>
+  <Employee>
+    <PersonnelNumber>123455</PersonnelNumber>
+    <LastName>пппп</LastName>
+    <FirstName>ррррррррр</FirstName>
+    <MiddleName>кккккккк</MiddleName>
+    <BirthDate>1987-01-11</BirthDate>
+    <GenderName>Мужской</GenderName>
+    <PositionName>Бухгалтер</PositionName>
+    <DepartmentName>Бухгалтерия</DepartmentName>
+    <StateName>Работает</StateName>
+  </Employee>
+  <Employee>
+    <PersonnelNumber>54321</PersonnelNumber>
+    <LastName>Петрова</LastName>
+    <FirstName>Мария</FirstName>
+    <MiddleName>Сергеевна</MiddleName>
+    <BirthDate>1992-11-20</BirthDate>
+    <GenderName>Женский</GenderName>
+    <PositionName>Менеджер по продажам</PositionName>
+    <DepartmentName>Отдел продаж</DepartmentName>
+    <StateName>Работает</StateName>
+  </Employee>
+  <Employee>
+    <PersonnelNumber>6456756</PersonnelNumber>
+    <LastName>пркепрк</LastName>
+    <FirstName>рркеркр</FirstName>
+    <MiddleName>ркер</MiddleName>
+    <BirthDate>1987-02-16</BirthDate>
+    <GenderName>Мужской</GenderName>
+    <PositionName>Юрисконсульт</PositionName>
+    <DepartmentName>Юридический отдел</DepartmentName>
+    <StateName>Уволен</StateName>
+  </Employee>
+  <Employee>
+    <PersonnelNumber>98765</PersonnelNumber>
+    <LastName>Сидоров</LastName>
+    <FirstName>Петр</FirstName>
+    <MiddleName>Алексеевич</MiddleName>
+    <BirthDate>1975-03-15</BirthDate>
+    <GenderName>Мужской</GenderName>
+    <PositionName>Главный бухгалтер</PositionName>
+    <DepartmentName>Бухгалтерия</DepartmentName>
+    <StateName>Работает</StateName>
+  </Employee>
+</Employees>

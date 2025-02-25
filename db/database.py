@@ -401,3 +401,20 @@ class Database:
         result = self.execute_query(q.INSERT_EMPLOYEE, params)
         log.debug(f"insert_employee вернул: {result}")  # !!!
         return result
+
+    def personnel_number_exists(self, personnel_number):
+        """
+        Проверяет, существует ли сотрудник с заданным табельным номером.
+
+        Args:
+            personnel_number (str): Табельный номер.
+
+        Returns:
+            bool: True, если существует, False в противном случае.
+        """
+        log.debug(
+            f"Проверка существования табельного номера: {personnel_number}")  # !!!
+        result = self.fetch_one(
+            "SELECT 1 FROM Employees WHERE PersonnelNumber = ?", (personnel_number,))
+        log.debug(f"Результат проверки: {result is not None}")  # !!!
+        return result is not None
