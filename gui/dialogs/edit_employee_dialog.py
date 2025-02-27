@@ -5,6 +5,7 @@ import re
 import datetime
 from tkinter import messagebox
 import logging
+from db.employee_repository import EmployeeRepository
 
 log = logging.getLogger(__name__)
 
@@ -24,7 +25,7 @@ class EditEmployeeDialog(ctk.CTkToplevel):
             employee_data (tuple): Данные о сотруднике (результат fetch_one).
         """
         super().__init__(master)
-        self.db = db
+        self.repository = EmployeeRepository(db)
         self.employee_data = employee_data  # Сохраняем данные
         self.title("Редактировать сотрудника")
         self.geometry("650x920")
@@ -286,9 +287,9 @@ class EditEmployeeDialog(ctk.CTkToplevel):
         Загружает данные в выпадающие списки (пол, должность, состояние).
         """
         log.debug("Загрузка данных в комбобоксы (EditEmployeeDialog)")
-        genders = self.db.get_genders()
-        positions = self.db.get_all_positions()
-        states = self.db.get_states()
+        genders = self.repository.get_genders()
+        positions = self.repository.get_all_positions()
+        states = self.repository.get_states()
 
         if genders is None or positions is None or states is None:
             messagebox.showerror(
@@ -313,9 +314,9 @@ class EditEmployeeDialog(ctk.CTkToplevel):
             return
 
         #  Получаем ID
-        position_id = self.db.fetch_one(
+        position_id = self.repository.fetch_one(
             "SELECT ID FROM Positions WHERE Name = ?", (selected_position,))[0]
-        departments = self.db.get_departments_for_position(position_id)
+        departments = self.repository.get_departments_for_position(position_id)
 
         if departments is None:
             messagebox.showerror(
@@ -432,13 +433,13 @@ class EditEmployeeDialog(ctk.CTkToplevel):
 
         birth_date_str = f"{birth_year}-{birth_month_index:02}-{birth_day:02}"
 
-        gender_id = self.db.get_gender_id(gender)
-        position_id = self.db.get_position_id(position)
+        gender_id = self.repository.get_gender_id(gender)
+        position_id = self.repository.get_position_id(position)
 
-        dep_ids = self.db.get_department_by_name(department)
+        dep_ids = self.repository.get_department_by_name(department)
         department_id = [item[0] for item in dep_ids][0]
 
-        state_id = self.db.get_state_id(state)
+        state_id = self.repository.get_state_id(state)
         log.debug(
             f"Полученные ID: gender_id={gender_id}, position_id={position_id}, department_id={department_id}, state_id={state_id}")
 
@@ -446,7 +447,7 @@ class EditEmployeeDialog(ctk.CTkToplevel):
             messagebox.showerror("Ошибка", "Не найдена запись в справочнике!")
             log.error("Не найдены ID в справочниках")
             return
-        success = self.db.update_employee(
+        success = self.repository.update_employee(
             personnel_number, lastname, firstname, middlename, birth_date_str,
             gender_id, position_id, department_id, state_id
         )

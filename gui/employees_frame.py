@@ -7,6 +7,7 @@ from .utils import load_icon  # load_icon
 from .dialogs.add_employee_dialog import AddEmployeeDialog
 from .dialogs.edit_employee_dialog import EditEmployeeDialog
 from .dialogs.import_dialog import ImportDialog
+from db.employee_repository import EmployeeRepository
 from tkinter import messagebox
 import logging
 import csv
@@ -27,6 +28,7 @@ class EmployeesFrame(BaseTableFrame):
 
     def __init__(self, master, db):
         super().__init__(master, db)  # Вызываем конструктор BaseTableFrame
+        self.repository = EmployeeRepository(db)  # !!! Создаем репозиторий
         self.create_widgets()  # !!!
         self.load_data()       # !!!
         self.display_data()   # !!!
@@ -167,8 +169,8 @@ class EmployeesFrame(BaseTableFrame):
         log.debug("Загрузка данных для EmployeesFrame")
         if search_term is None:
             search_term = self.search_entry.get()
-        #  Используем метод get_employees из *репозитория* (пока это self.db).
-        self.all_data, self.total_rows = self.db.get_employees(
+        #  Используем метод get_employees из *репозитория* (пока это self.repository).
+        self.all_data, self.total_rows = self.repository.get_employees(
             search_term=search_term)
         if self.all_data is None:
             log.warning("get_employees вернул None")
@@ -210,7 +212,7 @@ class EmployeesFrame(BaseTableFrame):
     def add_employee(self):
         """Открывает диалог добавления нового сотрудника."""
         log.info("Открытие диалога добавления сотрудника")
-        dialog = AddEmployeeDialog(self, self.db)
+        dialog = AddEmployeeDialog(self, self.repository)
         dialog.wait_window()  # Ждём
         self.load_data()    #
         self.display_data()  # после закрытия
@@ -227,7 +229,7 @@ class EmployeesFrame(BaseTableFrame):
 
         selected_row_index = list(selected_row)[0]
         personnel_number = self.table.get_cell_data(selected_row_index, 0)
-        employee_data = self.db.get_employee_by_personnel_number(
+        employee_data = self.repository.get_employee_by_personnel_number(
             personnel_number)
 
         if employee_data is None:
@@ -238,7 +240,7 @@ class EmployeesFrame(BaseTableFrame):
             return
 
         dialog = EditEmployeeDialog(
-            self, self.db, employee_data)  # Передаем данные в
+            self, self.repository, employee_data)  # Передаем данные в
         dialog.wait_window()  # Ждем
         self.load_data()          # Обновляем
         self.display_data()
@@ -257,7 +259,7 @@ class EmployeesFrame(BaseTableFrame):
 
         if messagebox.askyesno("Подтверждение",
                                f"Вы уверены, что хотите удалить сотрудника с табельным номером {personnel_number}?"):
-            if self.db.delete_employee(personnel_number):
+            if self.repository.delete_employee(personnel_number):
                 messagebox.showinfo("Успех", "Сотрудник удален.")
                 log.info(
                     f"Сотрудник с табельным номером {personnel_number} удален")
@@ -276,7 +278,7 @@ class EmployeesFrame(BaseTableFrame):
     def import_data(self):
         """Открытие диалога импорта"""
         log.info("Открытие диалога импорта")
-        dialog = ImportDialog(self, self.db)
+        dialog = ImportDialog(self, self.repository)
         dialog.wait_window()
         self.load_data()
         self.display_data()  # После импорта
@@ -285,7 +287,7 @@ class EmployeesFrame(BaseTableFrame):
         """Экспортирует данные в CSV и XML."""
         log.info("Экспорт данных о сотрудниках")
 
-        data, _ = self.db.get_employees()
+        data, _ = self.repository.get_employees()
         if not data:
             messagebox.showinfo("Экспорт", "Нет данных для экспорта.")
             log.info("Нет данных для экспорта")  # !!!

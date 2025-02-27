@@ -5,6 +5,7 @@ import re  # Для валидации
 from tkinter import messagebox  # !!!  Для messagebox
 import datetime
 import logging
+from db.employee_repository import EmployeeRepository
 
 log = logging.getLogger(__name__)
 
@@ -23,7 +24,7 @@ class AddEmployeeDialog(ctk.CTkToplevel):
             db (Database): Объект базы данных.
         """
         super().__init__(master)
-        self.db = db
+        self.repository = EmployeeRepository(db)
         self.title("Добавить сотрудника")
         self.geometry("650x920")
         self.resizable(False, False)
@@ -284,9 +285,9 @@ class AddEmployeeDialog(ctk.CTkToplevel):
         Загружает данные в выпадающие списки (пол, должность, состояние).
         """
         log.debug("Загрузка данных в комбобоксы")
-        genders = self.db.get_genders()
-        positions = self.db.get_all_positions()
-        states = self.db.get_states()
+        genders = self.repository.get_genders()
+        positions = self.repository.get_all_positions()
+        states = self.repository.get_states()
 
         if genders is None or positions is None or states is None:
             messagebox.showerror(
@@ -312,10 +313,10 @@ class AddEmployeeDialog(ctk.CTkToplevel):
             return
 
         #  Получаем ID
-        position_id = self.db.fetch_one(
+        position_id = self.repository.fetch_one(
             "SELECT ID FROM Positions WHERE Name = ?", (selected_position,))[0]
 
-        departments = self.db.get_departments_for_position(position_id)
+        departments = self.repository.get_departments_for_position(position_id)
 
         if departments is None:
             messagebox.showerror(
@@ -442,21 +443,21 @@ class AddEmployeeDialog(ctk.CTkToplevel):
         # Дата рождения (строка)
         birth_date_str = f"{birth_year}-{birth_month_index:02}-{birth_day:02}"
 
-        if self.db.fetch_one("SELECT 1 FROM Employees WHERE PersonnelNumber = ?", (personnel_number,)):
+        if self.repository.fetch_one("SELECT 1 FROM Employees WHERE PersonnelNumber = ?", (personnel_number,)):
             messagebox.showerror(
                 "Ошибка", "Сотрудник с таким табельным номером уже существует!")
             log.warning(f"Табельный номер уже существует: {personnel_number}")
             return
 
         # --- Получаем ID ---  (ИСПОЛЬЗУЕМ МЕТОДЫ Database!)
-        gender_id = self.db.get_gender_id(gender)
-        position_id = self.db.get_position_id(position)
+        gender_id = self.repository.get_gender_id(gender)
+        position_id = self.repository.get_position_id(position)
 
         # Находим ID департамента.
-        dep_ids = self.db.get_department_by_name(department)
+        dep_ids = self.repository.get_department_by_name(department)
         department_id = [item[0] for item in dep_ids][0]  # берем первый
 
-        state_id = self.db.get_state_id(state)
+        state_id = self.repository.get_state_id(state)
 
         log.debug(
             f"Полученные ID: gender_id={gender_id}, position_id={position_id}, department_id={department_id}, state_id={state_id}")
@@ -467,7 +468,7 @@ class AddEmployeeDialog(ctk.CTkToplevel):
             return
 
         # --- Добавляем сотрудника ---
-        success = self.db.insert_employee(
+        success = self.repository.insert_employee(
             personnel_number, lastname, firstname, middlename, birth_date_str,
             gender_id, position_id, department_id, state_id
         )
