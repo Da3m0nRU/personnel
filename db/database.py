@@ -1,9 +1,9 @@
 # db/database.py
 import sqlite3
 from config import DATABASE_PATH
-import db.queries as q
+import db.queries as q  # Импортируем модуль queries
 import logging
-from gui.utils import configure_logging
+
 
 log = logging.getLogger(__name__)
 
@@ -16,9 +16,6 @@ class Database:
     def __init__(self, db_path=DATABASE_PATH):
         """
         Инициализирует подключение к базе данных.
-
-        Args:
-            db_path (str): Путь к файлу базы данных. По умолчанию берется из config.py.
         """
         log.debug(f"Инициализация объекта Database с путём к БД: {db_path}")
         self.conn = None
@@ -33,13 +30,6 @@ class Database:
     def execute_query(self, query, params=None):
         """
         Выполняет SQL-запрос (INSERT, UPDATE, DELETE и т.д.).
-
-        Args:
-            query (str): SQL-запрос.
-            params (tuple, optional): Параметры для запроса (защита от SQL-инъекций).
-
-        Returns:
-            bool: True, если запрос выполнен успешно, иначе False.
         """
         log.debug(f"Выполнение запроса: {query} с параметрами: {params}")
         try:
@@ -59,14 +49,6 @@ class Database:
     def fetch_all(self, query, params=None):
         """
         Выполняет SQL-запрос и возвращает все результаты (SELECT).
-
-        Args:
-            query (str): SQL-запрос.
-            params (tuple, optional): Параметры для запроса.
-
-        Returns:
-            list: Список кортежей с результатами запроса.  Пустой список, если результатов нет.
-                 None в случае ошибки.
         """
         log.debug(
             f"Выполнение запроса fetch_all: {query} с параметрами: {params}")
@@ -86,13 +68,6 @@ class Database:
     def fetch_one(self, query, params=None):
         """
         Выполняет SQL-запрос и возвращает один результат (SELECT).
-
-        Args:
-            query (str): SQL-запрос.
-            params (tuple, optional): Параметры для запроса.
-
-        Returns:
-            tuple: Кортеж с результатом запроса.  None, если результатов нет или произошла ошибка.
         """
         log.debug(
             f"Выполнение запроса fetch_one: {query} с параметрами: {params}")
@@ -119,76 +94,47 @@ class Database:
             self.conn.close()
             log.debug("Соединение с базой данных закрыто.")
 
-    def get_employees(self, page=1, per_page=10, search_term=None):
+    def get_employees(self, search_term=None):
         """
-        Получает список сотрудников с пагинацией и поиском.
-
-        Args:
-            page (int): Номер страницы (начиная с 1).
-            per_page (int): Количество записей на странице.
-            search_term (str, optional): Строка поиска.
-
-        Returns:
-            tuple: Кортеж (data, total_rows), где:
-                data - список кортежей с данными сотрудников на текущей странице.
-                total_rows - общее количество найденных сотрудников (с учетом поиска).
-                Если произошла ошибка, возвращает (None, 0).
+        Получает список сотрудников с поиском.
         """
         log.debug(
-            f"Вызов get_employees с параметрами: page={page}, per_page={per_page}, search_term={search_term}")
-        offset = (page - 1) * per_page
-        limit = per_page
-        query = q.GET_EMPLOYEES
+            f"Вызов get_employees с параметрами: search_term={search_term}")
+
+        #  Собираем запрос
+        query = q.GET_EMPLOYEES  # Основной запрос
         params = []
 
         if search_term:
-            log.debug(f"Добавление условия поиска: {search_term}")
-            query += """
-               AND (E.PersonnelNumber LIKE ?
-                   OR E.LastName LIKE ?
-                   OR E.FirstName LIKE ?
-                   OR E.MiddleName LIKE ?)
-            """
-            params.extend([f"%{search_term}%"] * 4)
+            # Добавляем условие поиска, используя именованные параметры
+            query += q.GET_EMPLOYEES_SEARCH
+            params = {"search_term": f"%{search_term}%"}  # !!!
 
-        query += " ORDER BY E.PersonnelNumber LIMIT ? OFFSET ?"
-        params.extend([limit, offset])
+        query += q.GET_EMPLOYEES_ORDER_BY  # Добавляем сортировку
+
         log.debug(f"Итоговый запрос: {query}, параметры: {params}")
-        data = self.fetch_all(query, params)
 
+        data = self.fetch_all(query, params)
         if data is None:
             log.warning("get_employees вернул None")
             return None, 0
 
+        #  Запрос для подсчета количества записей (с учетом поиска).
         count_query = q.GET_EMPLOYEES_COUNT
         count_params = []
         if search_term:
-            count_query += """
-               AND (E.PersonnelNumber LIKE ?
-                   OR E.LastName LIKE ?
-                   OR E.FirstName LIKE ?
-                   OR E.MiddleName LIKE ?)
-            """
-            count_params.extend([f"%{search_term}%"] * 4)
+            count_query += q.GET_EMPLOYEES_COUNT_SEARCH  # !!!
+            count_params = {"search_term": f"%{search_term}%"}
 
         log.debug(
             f"Запрос для подсчета количества: {count_query}, параметры: {count_params}")
         total_rows = self.fetch_one(count_query, count_params)[0]
         log.debug(
             f"get_employees: общее количество строк: {total_rows}, получено данных {len(data) if data else 0}")
+
         return data, total_rows
 
     def get_departments_for_position(self, position_id):
-        """
-        Получает список отделов, связанных с указанной должностью.
-
-        Args:
-            position_id (int): ID должности.
-
-        Returns:
-            list: Список кортежей с названиями отделов.  Пустой список, если отделов нет.
-                 None в случае ошибки.
-        """
         log.debug(
             f"Вызов get_departments_for_position с position_id={position_id}")
         result = self.fetch_all(q.GET_DEPARTMENTS_FOR_POSITION, (position_id,))
@@ -196,28 +142,12 @@ class Database:
         return result
 
     def get_positions(self):
-        """
-        Получает список всех должностей.
-
-        Returns:
-            list: Список кортежей с названиями должностей.  Пустой список, если должностей нет.
-                None в случае ошибки.
-        """
         log.debug("Вызов get_positions")
-        result = self.fetch_all(q.GET_POSITIONS)
+        result = self.fetch_all(q.GET_POSITIONS)  # !!! исправил
         log.debug(f"get_positions вернул: {result}")
         return result
 
     def delete_employee(self, personnel_number):
-        """
-        Удаляет сотрудника по табельному номеру.
-
-        Args:
-            personnel_number (str): Табельный номер сотрудника.
-
-        Returns:
-            bool: True, если сотрудник успешно удален, False в противном случае.
-        """
         log.debug(
             f"Вызов delete_employee с personnel_number={personnel_number}")
         result = self.execute_query(q.DELETE_EMPLOYEE, (personnel_number,))
@@ -225,15 +155,6 @@ class Database:
         return result
 
     def get_employee_by_personnel_number(self, personnel_number):
-        """
-        Возвращает данные сотрудника по табельному номеру.
-
-        Args:
-            personnel_number (str): Табельный номер сотрудника.
-
-        Returns:
-            tuple: Кортеж с данными сотрудника. None, если сотрудник не найден.
-        """
         log.debug(
             f"Вызов get_employee_by_personnel_number с personnel_number={personnel_number}")
         result = self.fetch_one(
@@ -243,23 +164,6 @@ class Database:
 
     def update_employee(self, personnel_number, lastname, firstname, middlename, birth_date_str,
                         gender_id, position_id, department_id, state_id):
-        """
-        Обновляет данные сотрудника в базе данных.
-
-        Args:
-            personnel_number (str): Табельный номер сотрудника.
-            lastname (str): Фамилия.
-            firstname (str): Имя.
-            middlename (str): Отчество.
-            birth_date_str (str): Дата рождения в формате "ГГГГ-ММ-ДД".
-            gender_id (int): ID пола.
-            position_id (int): ID должности.
-            department_id (int): ID отдела.
-            state_id (int): ID состояния.
-
-        Returns:
-            bool: True, если данные успешно обновлены, False в противном случае.
-        """
         log.debug(
             f"Вызов update_employee с данными: personnel_number={personnel_number}, lastname={lastname}, firstname={firstname}, middlename={middlename}, birth_date_str={birth_date_str}, gender_id={gender_id}, position_id={position_id}, department_id={department_id}, state_id={state_id}")
 
@@ -316,12 +220,6 @@ class Database:
     def get_gender_id(self, gender_name):
         """
         Возвращает ID пола по названию.
-
-        Args:
-            gender_name (str): Название пола.
-
-        Returns:
-            int: ID пола, или None, если пол не найден.
         """
         log.debug(f"Вызван get_gender_id с gender_name={gender_name}")
         result = self.fetch_one(q.GET_GENDER_ID, (gender_name,))
@@ -330,13 +228,7 @@ class Database:
 
     def get_position_id(self, position_name):
         """
-        Возвращает ID должности по названию.
-
-        Args:
-            position_name (str): Название должности.
-
-        Returns:
-            int: ID должности, или None, если должность не найдена.
+        Возвращает ID должности по названию
         """
         log.debug(f"Вызван get_position_id с position_name={position_name}")
         result = self.fetch_one(q.GET_POSITION_ID, (position_name,))
@@ -346,12 +238,6 @@ class Database:
     def get_state_id(self, state_name):
         """
         Возвращает ID состояния по названию.
-
-        Args:
-            state_name (str): Название состояния.
-
-        Returns:
-            int: ID состояния, или None, если состояние не найдено.
         """
         log.debug(f"Вызван get_state_id с state_name={state_name}")
         result = self.fetch_one(q.GET_STATE_ID, (state_name,))
@@ -361,16 +247,9 @@ class Database:
     def get_department_by_name(self, department_name):
         """
         Возвращает ID отдела по его названию.
-
-        Args:
-            department_name (str): Название отдела
-
-        Returns:
-            int: ID отдела
         """
         log.debug(
             f"Вызван get_department_by_name с department_name='{department_name}'")
-
         result = self.fetch_all(q.GET_DEPARTMENT_BY_NAME, (department_name,))
         log.debug(f"get_department_by_name вернул: {result}")
         return result
@@ -379,20 +258,6 @@ class Database:
                         gender_id, position_id, department_id, state_id):
         """
         Добавление нового сотрудника
-
-        Args:
-            personnel_number (str): Табельный номер сотрудника.
-            lastname (str): Фамилия.
-            firstname (str): Имя.
-            middlename (str): Отчество.
-            birth_date_str (str): Дата рождения в формате "ГГГГ-ММ-ДД".
-            gender_id (int): ID пола.
-            position_id (int): ID должности.
-            department_id (int): ID отдела.
-            state_id (int): ID состояния.
-
-        Returns:
-            bool: True, если данные успешно добавлены, False в противном случае.
         """
         log.debug(
             f"Вызван insert_employee с данными: personnel_number={personnel_number}, lastname={lastname}, firstname={firstname}, middlename={middlename}, birth_date_str={birth_date_str}, gender_id={gender_id}, position_id={position_id}, department_id={department_id}, state_id={state_id}")
@@ -403,18 +268,10 @@ class Database:
         return result
 
     def personnel_number_exists(self, personnel_number):
-        """
-        Проверяет, существует ли сотрудник с заданным табельным номером.
-
-        Args:
-            personnel_number (str): Табельный номер.
-
-        Returns:
-            bool: True, если существует, False в противном случае.
-        """
+        """Проверяет, существует ли сотрудник с заданным табельным номером."""
         log.debug(
-            f"Проверка существования табельного номера: {personnel_number}")  # !!!
+            f"Проверка существования табельного номера: {personnel_number}")
         result = self.fetch_one(
             "SELECT 1 FROM Employees WHERE PersonnelNumber = ?", (personnel_number,))
-        log.debug(f"Результат проверки: {result is not None}")  # !!!
+        log.debug(f"Результат проверки: {result is not None}")
         return result is not None

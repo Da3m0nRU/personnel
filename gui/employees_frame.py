@@ -5,7 +5,7 @@ from tksheet import Sheet
 from .utils import load_icon
 from .dialogs.add_employee_dialog import AddEmployeeDialog
 from .dialogs.edit_employee_dialog import EditEmployeeDialog
-from .dialogs.import_dialog import ImportDialog  # Импорт диалога импорта
+from .dialogs.import_dialog import ImportDialog
 from tkinter import messagebox
 import logging
 import csv
@@ -14,36 +14,21 @@ import os
 import datetime
 import codecs
 
-
 log = logging.getLogger(__name__)
 
 
 class EmployeesFrame(ctk.CTkFrame):
-    """
-    Вкладка "Сотрудники".
-
-    Отображает список сотрудников, позволяет добавлять, редактировать и удалять записи,
-    а также импортировать и экспортировать данные.
-    """
-
     def __init__(self, master, db):
-        """
-        Инициализирует вкладку "Сотрудники".
-
-        Args:
-            master (ctk.CTkFrame): Родительский виджет (область контента главного окна).
-            db (Database): Объект базы данных.
-        """
         super().__init__(master, fg_color=MAIN_BG_COLOR)
         self.db = db
         self.current_page = 1
         self.rows_per_page = 10
-        self.total_rows = 0
+        self.total_rows = 0  # Общее количество записей (с учетом поиска)
         self.all_data = []
-        self.data = []
+        self.data = []  # Данные для текущей страницы (после фильтрации)
         self.create_widgets()
-        self.load_data()
-        self.display_data()  # Вызываем display_data, чтобы установить начальные значения
+        self.load_data()       # Загружаем данные (с учетом поиска)
+        self.display_data()
         log.debug("Инициализирован фрейм EmployeesFrame")
 
     def create_widgets(self):
@@ -89,14 +74,14 @@ class EmployeesFrame(ctk.CTkFrame):
             font=("Arial", 18, "bold"),
             command=self.edit_employee,
             fg_color=BUTTON_BG_COLOR,
-            text_color="#FF8C00",
+            text_color="#FF8C00",  # Оранжевый
             border_width=2,
             border_color="#FF8C00",
-            hover_color="#FFB347",
+            hover_color="#FFB347",  # Светлее при наведении
             corner_radius=12,
-            width=180,
+            width=180,  # Ширина по тексту
             height=40,
-            image=load_icon("edit.png", size=(20, 20)),
+            image=load_icon("edit.png", size=(20, 20)),  # Другая иконка
             compound="left"
         )
         self.edit_button.place(x=27 + 220 + 27 + 150 + 20, y=139)
@@ -108,14 +93,14 @@ class EmployeesFrame(ctk.CTkFrame):
             font=("Arial", 18, "bold"),
             command=self.delete_employee,
             fg_color=BUTTON_BG_COLOR,
-            text_color="#FF4136",
+            text_color="#FF4136",  # Красный
             border_width=2,
             border_color="#FF4136",
-            hover_color=BUTTON_HOVER_COLOR,
+            hover_color=BUTTON_HOVER_COLOR,  # Тот же, что и у других
             corner_radius=12,
-            width=150,
+            width=150,  # Ширина по тексту
             height=40,
-            image=load_icon("cross.png", size=(20, 20)),
+            image=load_icon("cross.png", size=(20, 20)),  # Другая иконка
             compound="left"
         )
         self.delete_button.place(x=27 + 220 + 27, y=139)
@@ -127,7 +112,7 @@ class EmployeesFrame(ctk.CTkFrame):
             font=("Arial", 18, "bold"),
             command=self.import_data,
             fg_color=BUTTON_BG_COLOR,
-            text_color="#4CAF50",
+            text_color="#4CAF50",  # Зеленый цвет
             border_width=2,
             border_color="#4CAF50",
             hover_color=BUTTON_HOVER_COLOR,
@@ -137,6 +122,7 @@ class EmployeesFrame(ctk.CTkFrame):
             image=load_icon("import.png", size=(20, 20)),
             compound="left"
         )
+        # Под кнопкой "Добавить"
         self.import_button.place(x=27, y=139 + 40 + 20)
 
         # --- Кнопка "Экспорт" ---
@@ -146,7 +132,7 @@ class EmployeesFrame(ctk.CTkFrame):
             font=("Arial", 18, "bold"),
             command=self.export_data,
             fg_color=BUTTON_BG_COLOR,
-            text_color="#2196F3",
+            text_color="#2196F3",  # Синий цвет
             border_width=2,
             border_color="#2196F3",
             hover_color=BUTTON_HOVER_COLOR,
@@ -156,56 +142,58 @@ class EmployeesFrame(ctk.CTkFrame):
             image=load_icon("export.png", size=(20, 20)),
             compound="left"
         )
+        # Под кнопкой "Удалить"
         self.export_button.place(x=27 + 220 + 27 + 150 + 20, y=139 + 40 + 20)
 
         # --- Поле поиска ---
-        search_entry_width = 257
+        search_entry_width = 257  # переменная
         self.search_entry = ctk.CTkEntry(
             self,
             placeholder_text="Search...",
             width=search_entry_width,
             height=40,
-            font=DEFAULT_FONT,
-            text_color=LABEL_TEXT_COLOR,
+            font=DEFAULT_FONT,  # шрифт из конфига
+            text_color=LABEL_TEXT_COLOR,  # из конфига
             placeholder_text_color="gray",
-            fg_color="white"
+            fg_color="white"  # Белый фон
         )
-        self.search_entry.place(x=27 + 220 + 27 + 150 + 20 + 180 + 20, y=139)
-        self.search_entry.bind("<KeyRelease>", self.search)
+        self.search_entry.place(
+            x=27 + 220 + 27 + 150 + 20 + 180 + 20, y=139)  # Размещение
+        self.search_entry.bind("<KeyRelease>", self.search)  # Привязка поиска
 
-        # --- Таблица ---
-        self.table_wrapper = ctk.CTkFrame(self, fg_color="white")
+        # --- Таблица (Sheet) ---
+        self.table_wrapper = ctk.CTkFrame(self, fg_color="white")  # Рамка
+        # Размещение под кнопками
         self.table_wrapper.place(x=27, y=195 + 40 + 27)
-        self.table = Sheet(
-            self.table_wrapper,
-            width=1136,
-            height=450,
-        )
+        self.table = Sheet(self.table_wrapper,
+                           width=1220,
+                           height=450,
+                           font=TABLE_FONT,  # !!!
+                           header_font=TABLE_HEADER_FONT
+                           )  # Размеры
+
         self.table.pack(fill="both", expand=True, padx=10, pady=10)
+        #  Заголовки столбцов
+        self.table.headers(["Таб. номер", "Фамилия", "Имя", "Отчество",
+                            "Дата рожд.", "Пол", "Должность", "Отдел", "Состояние"])
 
-        self.table.headers(
-            ["Таб. номер", "Фамилия", "Имя", "Отчество", "Дата рожд.", "Пол", "Должность", "Отдел", "Состояние"])
-
+        #  Включаем/отключаем привязки событий
         self.table.enable_bindings(("single_select",
                                     "row_select",
                                     "column_width_resize",
                                     "arrowkeys",
-                                    "row_height_resize",
-                                    "copy",
-                                    "cut",
-                                    "paste",
+                                    "copy",  # Копирование
+                                    "paste",  # Вставка
                                     "delete",
-                                    "undo",
-                                    "redo",
-                                    "rc_select",
-                                    "rc_insert_row",
-                                    "rc_delete_row",
-                                    "rc_insert_column",
-                                    "rc_delete_column",
-                                    "hide_rows",
-                                    "hide_columns",
-                                    "edit_cell"
+                                    "edit_cell",
+                                    "rc_select"  # Добавили
                                     ))
+        self.table.disable_bindings("row_height_resize", "cut", "undo", "redo",
+                                    "rc_insert_row", "rc_delete_row",
+                                    "rc_insert_column", "rc_delete_column",
+                                    "hide_rows", "hide_columns"
+                                    )
+
         # --- Пагинация ---
         self.pagination_frame = ctk.CTkFrame(
             self.table_wrapper, fg_color="transparent")
@@ -222,9 +210,9 @@ class EmployeesFrame(ctk.CTkFrame):
             fg_color="#E9ECEF",
             hover_color=BUTTON_HOVER_COLOR,
             text_color="#000000",
-            border_width=0,
-            border_color="#CED4DA",
-            state="disabled"  # Начальное состояние
+            border_width=0,  # Убрал рамку
+            border_color="#CED4DA",  # Серый цвет
+            state="disabled"
         )
         self.next_button = ctk.CTkButton(
             self.pagination_frame,
@@ -233,48 +221,45 @@ class EmployeesFrame(ctk.CTkFrame):
             command=self.next_page,
             width=30,
             height=30,
-            fg_color=BUTTON_BG_COLOR,
-            hover_color=BUTTON_HOVER_COLOR,
-            text_color="#000000",
-            border_width=1,
-            border_color="#CED4DA",
-            state="disabled"  # Начальное состояние
+            fg_color=BUTTON_BG_COLOR,  # Белый фон
+            hover_color=BUTTON_HOVER_COLOR,  # Тот же, что у других
+            text_color="#000000",  # Черный
+            border_width=1,      # Тонкая рамка
+            border_color="#CED4DA",   # Серый
+            state="disabled"  # По умолчанию выключена
         )
 
-        self.page_label = ctk.CTkLabel(
-            self.pagination_frame,
-            text="Страница 1 / 1",  # Начальный текст
-            font=("Arial", 16, "bold"),
-            text_color="#000000"
-        )
+        self.page_label = ctk.CTkLabel(self.pagination_frame, text="Страница 1 / 1",
+                                       font=("Arial", 16, "bold"),
+                                       text_color="#000000")  # Черный
         #  Размещение
         self.prev_button.pack(side="left", padx=(0, 5))
         self.page_label.pack(side="left", padx=5)
         self.next_button.pack(side="left", padx=(5, 0))
-
         log.debug("Виджеты EmployeesFrame созданы")
-
-    # --- Методы для работы с данными и отображением ---
+    # Методы работы с данными:
 
     def add_employee(self):
         """Открывает диалог добавления нового сотрудника."""
         log.info("Открытие диалога добавления сотрудника")
         dialog = AddEmployeeDialog(self, self.db)
         dialog.wait_window()
-        self.load_data()
-        self.display_data()
+        self.load_data()    # Обновляем данные.
+        self.display_data()  # после закрытия
 
     def edit_employee(self):
         """Открывает диалог редактирования сотрудника."""
         log.info("Открытие диалога редактирования сотрудника")
+        # Получаем *индексы* выделенных строк.
         selected_row = self.table.get_selected_rows()
         if not selected_row:
             messagebox.showerror(
                 "Ошибка", "Выберите сотрудника для редактирования!")
             log.warning("Попытка редактирования без выбора сотрудника")
             return
-
+        #  !!! tksheet возвращает генератор, поэтому нужен list
         selected_row_index = list(selected_row)[0]
+        # Получаем табельный номер.
         personnel_number = self.table.get_cell_data(selected_row_index, 0)
 
         employee_data = self.db.get_employee_by_personnel_number(
@@ -286,22 +271,26 @@ class EmployeesFrame(ctk.CTkFrame):
                 f"Не удалось получить данные сотрудника с табельным номером {personnel_number}")
             return
 
+        # Передаем данные в диалог.
         dialog = EditEmployeeDialog(self, self.db, employee_data)
-        dialog.wait_window()
-        self.load_data()
-        self.display_data()
+        dialog.wait_window()  # Ждем закрытия
+        self.load_data()          # Обновляем данные.
+        self.display_data()  # Отображаем
 
     def delete_employee(self):
         """Удаляет выбранного сотрудника."""
         log.info("Попытка удаления сотрудника")
+        # Получаем индексы выделенных строк.
         selected_row = self.table.get_selected_rows()
 
-        if not selected_row:
+        if not selected_row:  # Проверяем, выбрана ли строка.
             messagebox.showerror("Ошибка", "Выберите сотрудника для удаления!")
             log.warning("Попытка удаления без выбора сотрудника")
             return
 
+        # !!! tksheet возвращает генератор
         selected_row_index = list(selected_row)[0]
+        # Получаем табельный номер.
         personnel_number = self.table.get_cell_data(selected_row_index, 0)
 
         if messagebox.askyesno("Подтверждение",
@@ -309,9 +298,9 @@ class EmployeesFrame(ctk.CTkFrame):
             if self.db.delete_employee(personnel_number):
                 messagebox.showinfo("Успех", "Сотрудник удален.")
                 log.info(
-                    f"Сотрудник с табельным номером {personnel_number} удален")
-                self.load_data()
-                self.display_data()  # Обновляем после удаления
+                    f"Сотрудник с табельным номером {personnel_number} удален")  # !!!
+                self.load_data()          # Обновляем данные
+                self.display_data()       # и отображение.
             else:
                 messagebox.showerror(
                     "Ошибка", "Не удалось удалить сотрудника.")
@@ -330,28 +319,33 @@ class EmployeesFrame(ctk.CTkFrame):
         if self.current_page < self.get_total_pages():  # Исправлено!
             self.current_page += 1
             log.debug(f"Переход на следующую страницу: {self.current_page}")
-            self.display_data()  # Обновляем данные и интерфейс
+            self.display_data()
 
     def update_page_label(self):
-        """Обновляет метку с номером текущей страницы и общим количеством страниц."""
-        total_pages = self.get_total_pages()  # Получаем общее количество страниц
-        self.page_label.configure(
-            text=f"Страница {self.current_page} / {total_pages}")
+        """Обновляет метку с номером текущей/общее количество."""
+        total_pages = self.get_total_pages()  # Получаем
+        #  Если 0 страниц
+        if total_pages == 0:
+            self.page_label.configure(text="Страница 1 / 1")
+        else:
+            self.page_label.configure(
+                text=f"Страница {self.current_page} / {total_pages}")  # Обновляем
 
     def get_total_pages(self):
-        """Вычисляет и возвращает общее количество страниц."""
+        """Вычисляет общее количество страниц."""
         return (self.total_rows + self.rows_per_page - 1) // self.rows_per_page
 
     def update_buttons_state(self):
         """Обновляет состояние кнопок пагинации (включены/выключены)."""
         if self.current_page == 1:
             self.prev_button.configure(
-                state="disabled", border_width=0, fg_color="#E9ECEF")
+                state="disabled", border_width=0, fg_color="#E9ECEF")  # Стиль
         else:
             self.prev_button.configure(
                 state="normal", border_width=1, fg_color="transparent")
 
-        if self.current_page >= self.get_total_pages():  # Исправлено!
+        #  Если  >= , значит последняя, лог в else
+        if self.current_page >= self.get_total_pages():
             self.next_button.configure(
                 state="disabled", border_width=0, fg_color="#E9ECEF")
         else:
@@ -361,101 +355,102 @@ class EmployeesFrame(ctk.CTkFrame):
     def load_data(self):
         """Загружает данные из базы данных (с учетом поиска)."""
         log.debug("Загрузка данных для EmployeesFrame")
-        search_term = self.search_entry.get()  # Получаем текст поиска
+        #  search_term берем из search_entry (поля в self)
+        search_term = self.search_entry.get()
+        #  Вызываем get_employees, передавая search_term. page и per_page  НЕ передаём
         self.all_data, self.total_rows = self.db.get_employees(
-            search_term=search_term)  # Передаем search_term
-        if self.all_data is None:  # Проверяем на None
-            log.warning("get_employees вернул None")
-            self.all_data = []
+            search_term=search_term)  #
+        if self.all_data is None:  # Проверяем
+            log.warning("get_employees вернул None")   # !!!
+            self.all_data = []  # Пустой список
             self.total_rows = 0
 
     def search(self, event):
-        """Выполняет поиск по данным таблицы."""
-        search_term = self.search_entry.get().lower()  # Получаем текст поиска
-        log.debug(f"Поиск: {search_term}")
-        self.current_page = 1  # Сбрасываем на первую страницу при новом поиске
-        self.display_data()  # Передаем search_term
+        # search не нужен
+
+        self.load_data()  # Загружаем данные,
+        self.display_data()
+        # self.current_page = 1 #, сброс
 
     def display_data(self, search_term=None):
-        """
-        Отображает данные в таблице с учетом пагинации и поиска.
-        """
-        log.debug(f"Отображение данных с параметром поиска: {search_term}")
+        """Отображает данные в таблице с учетом пагинации."""
+        log.debug(f"Отображение данных")
+        #  search_term больше не нужен
+        #  Данные, если есть, в all data.
+        if not self.all_data:
+            self.load_data()
 
-        # Если есть параметр поиска, используем его. Иначе берем из self.search_entry
-        search_term = search_term if search_term is not None else self.search_entry.get().lower()
+        #  Фильтрация.
+        if search_term := self.search_entry.get().lower():  # := (морж)
+            filtered_data = []
+            for row in self.all_data:
+                #  Проверяем вхождение search_term в ЛЮБОЕ значение строки.
+                if any(search_term in str(value).lower() for value in row):
+                    filtered_data.append(row)
+            self.data = filtered_data  # filtered_data в self.data.
+            self.total_rows = len(filtered_data)
+        else:
+            self.data = self.all_data  # Используем self.all_data.
+            self.total_rows = len(self.all_data)
+            # total rows = len(filtered_data)
 
-        # Загружаем данные с учетом поиска и текущей страницы
-        self.data, self.total_rows = self.db.get_employees(
-            page=self.current_page, per_page=self.rows_per_page, search_term=search_term)
-
-        if self.data is None:
-            log.warning("get_employees (в display_data) вернул None")
-            self.data = []  # Если ошибка, отображаем пустую таблицу
-            self.total_rows = 0
-
-        # Очищаем таблицу
+        start_index = (self.current_page - 1) * self.rows_per_page  # пагинация
+        end_index = start_index + self.rows_per_page
+        current_page_data = self.data[start_index:end_index]
+        #  Очищаем таблицу.
         if self.table.total_rows() > 0:
-            self.table.set_sheet_data([[None for _ in range(len(self.table.headers()))] for _ in range(
-                self.table.total_rows())], redraw=False)  # Очищаем, но пока не перерисовываем
-        # Заполняем данными
-        if self.data:
-            self.table.set_sheet_data(self.data)
+            self.table.set_sheet_data([[None for _ in range(len(
+                self.table.headers()))] for _ in range(self.table.total_rows())], redraw=False)
+        # Заполняем данными.
+        if current_page_data:  # Если данные есть
+            # Отображаем данные текущей страницы.
+            self.table.set_sheet_data(current_page_data)
 
         self.table.set_column_widths(
             [100, 150, 100, 150, 120, 100, 180, 150, 100])
-        self.table.refresh()  # Перерисовываем
-        self.update_page_label()  # Обновляем номер страницы
-        self.update_buttons_state()  # Обновляем состояние кнопок
+        self.table.refresh()
+        self.update_page_label()  # Обновляем
+        self.update_buttons_state()  # Обновляем
 
     def import_data(self):
-        """
-        Обработчик нажатия на кнопку "Импорт". Открывает диалог импорта.
-        """
-        log.info("Открытие диалога импорта")
+        """Открытие диалога импорта"""
+        log.info("Открытие диалога импорта")  # !!!
         dialog = ImportDialog(self, self.db)
         dialog.wait_window()
         self.load_data()
-        self.display_data()  # Обновляем после импорта
+        self.display_data()  # После импорта
 
     def export_data(self):
-        """
-        Экспортирует данные о сотрудниках в форматы CSV и XML.
-        """
+        """Экспортирует данные в CSV и XML."""
         log.info("Экспорт данных о сотрудниках")
-
-        # 1. Получаем данные (все, без пагинации и фильтров)
-        data, _ = self.db.get_employees(page=1, per_page=999999)
+        # Получаем *все* данные, без пагинации.
+        data, _ = self.db.get_employees()
         if not data:
             messagebox.showinfo("Экспорт", "Нет данных для экспорта.")
-            log.info("Нет данных для экспорта")
+            log.info("Нет данных для экспорта")  # !!!
             return
+        #  Создание папки export/дата.
+        export_dir = "export"  # Путь
+        now = datetime.datetime.now()  # Текущее время
+        date_dir = os.path.join(export_dir, now.strftime("%Y-%m-%d"))  # Папка
+        os.makedirs(date_dir, exist_ok=True)  # Если нет - создать
 
-        # 2. Создаем папку export/дата
-        export_dir = "export"
-        now = datetime.datetime.now()
-        date_dir = os.path.join(export_dir, now.strftime("%Y-%m-%d"))
-        os.makedirs(date_dir, exist_ok=True)  # Создаем, если нет
-
-        # 3. Формируем имена файлов с датой и временем
-        timestamp = now.strftime("%H-%M-%S")  # Часы-минуты-секунды
-        csv_filename = os.path.join(date_dir, f"employees_{timestamp}.csv")
-        xml_filename = os.path.join(date_dir, f"employees_{timestamp}.xml")
+        #  Имена файлов с датой и временем.
+        timestamp = now.strftime("%H-%M-%S")  #
+        csv_filename = os.path.join(
+            date_dir, f"employees_{timestamp}.csv")  # Имя файла
+        xml_filename = os.path.join(
+            date_dir, f"employees_{timestamp}.xml")  # Имя файла
 
         # --- Экспорт в CSV ---
         try:
-            # Добавляем BOM (UTF-8 with BOM)
-            with codecs.open(csv_filename, "w", "utf-8-sig") as csvfile:  # Изменено здесь
-                # Заголовки столбцов (из структуры БД)
-                fieldnames = [
-                    "PersonnelNumber", "LastName", "FirstName", "MiddleName",
-                    "BirthDate", "GenderName", "PositionName", "DepartmentName", "StateName"
-                ]
+            with codecs.open(csv_filename, "w", encoding="utf-8-sig") as csvfile:  # BOM
+                fieldnames = ["PersonnelNumber", "LastName", "FirstName", "MiddleName", "BirthDate",
+                              "GenderName", "PositionName", "DepartmentName", "StateName"]  # Заголовки
                 writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
-                writer.writeheader()
-
+                writer.writeheader()  # Записываем заголовки
                 for row in data:
-                    # Преобразуем кортеж в словарь
+                    # Преобразуем в словарь
                     row_dict = {
                         "PersonnelNumber": row[0],
                         "LastName": row[1],
@@ -467,8 +462,9 @@ class EmployeesFrame(ctk.CTkFrame):
                         "DepartmentName": row[7],
                         "StateName": row[8]
                     }
-                    writer.writerow(row_dict)
+                    writer.writerow(row_dict)  # Записываем строку
             log.info(f"Данные экспортированы в CSV: {csv_filename}")  # !!!
+
         except Exception as e:
             messagebox.showerror(
                 "Ошибка экспорта", f"Ошибка при экспорте в CSV: {e}")
@@ -477,30 +473,33 @@ class EmployeesFrame(ctk.CTkFrame):
 
         # --- Экспорт в XML ---
         try:
-            root = ET.Element("Employees")
-            for row in data:
-                employee = ET.SubElement(root, "Employee")
-                ET.SubElement(employee, "PersonnelNumber").text = str(row[0])
-                ET.SubElement(employee, "LastName").text = row[1]
-                ET.SubElement(employee, "FirstName").text = row[2]
+
+            root = ET.Element("Employees")  # Корневой
+            for row in data:  # Перебираем
+                employee = ET.SubElement(
+                    root, "Employee")  # Создаем <Employee>
+                ET.SubElement(employee, "PersonnelNumber").text = str(
+                    row[0])  # Добавляем
+                ET.SubElement(employee, "LastName").text = row[1]          #
+                ET.SubElement(employee, "FirstName").text = row[2]          #
                 ET.SubElement(
                     employee, "MiddleName").text = row[3] if row[3] else ""
-                ET.SubElement(employee, "BirthDate").text = row[4]
-                ET.SubElement(employee, "GenderName").text = row[5]
-                ET.SubElement(employee, "PositionName").text = row[6]
+                ET.SubElement(employee, "BirthDate").text = row[4]      #
+                ET.SubElement(employee, "GenderName").text = row[5]       #
+                ET.SubElement(employee, "PositionName").text = row[6]    #
                 ET.SubElement(employee, "DepartmentName").text = row[7]
-                ET.SubElement(employee, "StateName").text = row[8]
+                ET.SubElement(employee, "StateName").text = row[8]     #
 
-            tree = ET.ElementTree(root)
-            ET.indent(tree, "  ")
+            tree = ET.ElementTree(root)  # Создаем
+            ET.indent(tree, space="  ")  # Добавляем
             tree.write(xml_filename, encoding="utf-8", xml_declaration=True)
             log.info(f"Данные экспортированы в XML: {xml_filename}")
 
-        except Exception as e:
+        except Exception as e:  # Если ошибка,
             messagebox.showerror(
-                "Ошибка экспорта", f"Ошибка при экспорте в XML: {e}")
-            log.exception(f"Ошибка при экспорте в XML: {e}")
-            return
+                "Ошибка экспорта", f"Ошибка при экспорте в XML: {e}")  # Сообщение
+            log.exception(f"Ошибка при экспорте в XML: {e}")  # !!!
+            return  #
 
-        messagebox.showinfo(
-            "Экспорт", f"Данные успешно экспортированы в:\n{csv_filename}\n{xml_filename}")
+        messagebox.showinfo("Экспорт",  # Сообщение
+                            f"Данные успешно экспортированы в:\n{csv_filename}\n{xml_filename}")

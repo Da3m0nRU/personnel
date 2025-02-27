@@ -8,12 +8,10 @@ load_dotenv()
 
 BASE_DIR = Path(__file__).parent
 ASSETS_PATH = BASE_DIR / "assets" / "img"
-DATABASE_PATH = os.getenv("DATABASE_PATH", "personnel.db")
+
+DATABASE_PATH = os.getenv("DATABASE_PATH", "kadry.db")
 DEFAULT_USERNAME = os.getenv("DEFAULT_USERNAME", "Пользователь")
 DEFAULT_USER_ROLE = os.getenv("DEFAULT_USER_ROLE", "Сотрудник")
-
-# --- ПУТЬ ДЛЯ ЭКСПОРТА ---
-EXPORT_PATH = BASE_DIR / "export"
 
 # --- Цвета ---
 MAIN_BG_COLOR = "#F0F4F8"
@@ -24,11 +22,12 @@ BUTTON_ACTIVE_BG_COLOR = "#00B275"
 BUTTON_HOVER_COLOR = "#EEEEEE"
 BUTTON_TEXT_COLOR = "#333333"
 BUTTON_ACTIVE_TEXT_COLOR = "#FFFFFF"
-BUTTON_DISABLED_TEXT_COLOR = "#969BA0"
+BUTTON_DISABLED_TEXT_COLOR = "#969BA0"  # Для disabled кнопок (если будут)
 LABEL_TEXT_COLOR = "#464154"
 FORM_LABEL_TEXT_COLOR = "#FFFFFF"
 FOOTER_TEXT_COLOR = "#969BA0"
 ACCENT_COLOR = "#00B074"
+
 
 # --- Размеры ---
 LEFT_PANEL_WIDTH = 344
@@ -47,9 +46,13 @@ BOLD_FONT = ("Arial", 18, "bold")
 TITLE_BOLD_FONT = ("Arial", 42, "bold")
 FOOTER_FONT = ("Arial", 12)
 
+#  Шрифты для таблицы tksheet.  Имя, размер, начертание
+TABLE_FONT = ("Arial", 14, "normal")        # !!!
+TABLE_HEADER_FONT = ("Arial", 16, "bold")   # !!!
+
 # --- Логирование ---
 LOG_LEVEL = logging.DEBUG
 LOG_FORMAT = "%(asctime)s - %(levelname)s - %(name)s - %(module)s:%(lineno)d - %(message)s"
 LOG_FILE = "app.log"
-MAX_LOG_SIZE = 1024 * 1024 * 5
+MAX_LOG_SIZE = 1024 * 1024 * 5  # 5 MB
 BACKUP_COUNT = 5
