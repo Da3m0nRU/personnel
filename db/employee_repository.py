@@ -53,7 +53,7 @@ class EmployeeRepository:  # !!! название класса
     def get_employee_by_personnel_number(self, personnel_number):
         log.debug(
             f"Вызов get_employee_by_personnel_number с personnel_number={personnel_number}")
-        result = self.fetch_one(
+        result = self.db.fetch_one(
             q.GET_EMPLOYEE_BY_PERSONNEL_NUMBER, (personnel_number,))
         log.debug(f"get_employee_by_personnel_number вернул: {result}")
         return result
@@ -67,14 +67,14 @@ class EmployeeRepository:  # !!! название класса
             f"Вызван insert_employee с данными: personnel_number={personnel_number}, lastname={lastname}, firstname={firstname}, middlename={middlename}, birth_date_str={birth_date_str}, gender_id={gender_id}, position_id={position_id}, department_id={department_id}, state_id={state_id}")
         params = (personnel_number, lastname, firstname, middlename, birth_date_str,
                   gender_id, position_id, department_id, state_id)
-        result = self.execute_query(q.INSERT_EMPLOYEE, params)
+        result = self.db.execute_query(q.INSERT_EMPLOYEE, params)
         log.debug(f"insert_employee вернул: {result}")  # !!!
         return result
 
     def delete_employee(self, personnel_number):
         log.debug(
             f"Вызов delete_employee с personnel_number={personnel_number}")
-        result = self.execute_query(q.DELETE_EMPLOYEE, (personnel_number,))
+        result = self.db.execute_query(q.DELETE_EMPLOYEE, (personnel_number,))
         log.debug(f"delete_employee вернул: {result}")
         return result
 
@@ -85,7 +85,7 @@ class EmployeeRepository:  # !!! название класса
 
         params = (lastname, firstname, middlename, birth_date_str,
                   gender_id, position_id, department_id, state_id, personnel_number)
-        result = self.execute_query(q.UPDATE_EMPLOYEE, params)
+        result = self.db.execute_query(q.UPDATE_EMPLOYEE, params)
         log.debug(f"update_employee вернул: {result}")
         return result
 
@@ -93,7 +93,7 @@ class EmployeeRepository:  # !!! название класса
         """Проверяет, существует ли сотрудник с заданным табельным номером."""
         log.debug(
             f"Проверка существования табельного номера: {personnel_number}")
-        result = self.fetch_one(
+        result = self.db.fetch_one(
             "SELECT 1 FROM Employees WHERE PersonnelNumber = ?", (personnel_number,))
         log.debug(f"Результат проверки: {result is not None}")
         return result is not None

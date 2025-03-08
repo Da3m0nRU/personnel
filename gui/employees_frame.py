@@ -8,6 +8,10 @@ from .dialogs.add_employee_dialog import AddEmployeeDialog
 from .dialogs.edit_employee_dialog import EditEmployeeDialog
 from .dialogs.import_dialog import ImportDialog
 from db.employee_repository import EmployeeRepository
+from db.gender_repository import GenderRepository  # !!!
+from db.position_repository import PositionRepository  # !!!
+from db.state_repository import StateRepository  # !!!
+from db.department_repository import DepartmentRepository  # !!!
 from tkinter import messagebox
 import logging
 import csv
@@ -28,10 +32,14 @@ class EmployeesFrame(BaseTableFrame):
 
     def __init__(self, master, db):
         super().__init__(master, db)  # Вызываем конструктор BaseTableFrame
-        self.repository = EmployeeRepository(db)  # !!! Создаем репозиторий
-        self.create_widgets()  # !!!
-        self.load_data()       # !!!
-        self.display_data()   # !!!
+        self.repository = EmployeeRepository(db)
+        self.gender_repository = GenderRepository(db)    # !!!
+        self.position_repository = PositionRepository(db)  # !!!
+        self.state_repository = StateRepository(db)       # !!!
+        self.department_repository = DepartmentRepository(db)  # !!!
+        self.create_widgets()
+        self.load_data()
+        self.display_data()
 
     def create_widgets(self):
         """
@@ -248,12 +256,14 @@ class EmployeesFrame(BaseTableFrame):
     def delete_employee(self):
         """Удаляет выбранного сотрудника."""
         log.info("Попытка удаления сотрудника")
-        selected_row = self.table.get_selected_rows()
+        selected_row = self.table.get_selected_rows()  # Получаем индексы
+
         if not selected_row:
             messagebox.showerror("Ошибка", "Выберите сотрудника для удаления!")
             log.warning("Попытка удаления без выбора сотрудника")
             return
 
+        # tksheet возвращает генератор
         selected_row_index = list(selected_row)[0]
         personnel_number = self.table.get_cell_data(selected_row_index, 0)
 
@@ -263,8 +273,15 @@ class EmployeesFrame(BaseTableFrame):
                 messagebox.showinfo("Успех", "Сотрудник удален.")
                 log.info(
                     f"Сотрудник с табельным номером {personnel_number} удален")
-                self.load_data()
-                self.display_data()
+
+                # --- Корректировка страницы ---
+                self.load_data()  # Обновляем данные
+                total_pages = self.get_total_pages()
+                if self.current_page > total_pages:
+                    self.current_page = max(1, total_pages)
+                # ----------------------------------
+
+                self.display_data()  # Отображаем данные
             else:
                 messagebox.showerror(
                     "Ошибка", "Не удалось удалить сотрудника.")
@@ -272,16 +289,23 @@ class EmployeesFrame(BaseTableFrame):
                     f"Не удалось удалить сотрудника с табельным номером {personnel_number}")
 
     def search(self, event):
+        if self.current_page != 1:
+            self.current_page = 1
         self.load_data()
         self.display_data()
 
     def import_data(self):
-        """Открытие диалога импорта"""
+        """
+        Обработчик нажатия на кнопку "Импорт".  Открывает диалог импорта.
+        """
         log.info("Открытие диалога импорта")
-        dialog = ImportDialog(self, self.repository)
+        # !!! Передаем ВСЕ репозитории
+        dialog = ImportDialog(self, self.repository, self.gender_repository,
+                              self.position_repository, self.state_repository,
+                              self.department_repository)
         dialog.wait_window()
         self.load_data()
-        self.display_data()  # После импорта
+        self.display_data()
 
     def export_data(self):
         """Экспортирует данные в CSV и XML."""

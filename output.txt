@@ -1,0 +1,3000 @@
+File directory: config.py, and it contains following code: 
+# config.py
+import os
+from dotenv import load_dotenv
+from pathlib import Path
+import logging
+
+load_dotenv()
+
+BASE_DIR = Path(__file__).parent
+ASSETS_PATH = BASE_DIR / "assets" / "img"
+
+DATABASE_PATH = os.getenv("DATABASE_PATH", "kadry.db")
+DEFAULT_USERNAME = os.getenv("DEFAULT_USERNAME", "Пользователь")
+DEFAULT_USER_ROLE = os.getenv("DEFAULT_USER_ROLE", "Сотрудник")
+
+# --- Цвета ---
+MAIN_BG_COLOR = "#F0F4F8"
+SECONDARY_BG_COLOR = "#00B275"
+LEFT_PANEL_BG_COLOR = "#FFFFFF"
+BUTTON_BG_COLOR = "#FFFFFF"
+BUTTON_ACTIVE_BG_COLOR = "#00B275"
+BUTTON_HOVER_COLOR = "#EEEEEE"
+BUTTON_TEXT_COLOR = "#333333"
+BUTTON_ACTIVE_TEXT_COLOR = "#FFFFFF"
+BUTTON_DISABLED_TEXT_COLOR = "#969BA0"  # Для disabled кнопок (если будут)
+LABEL_TEXT_COLOR = "#464154"
+FORM_LABEL_TEXT_COLOR = "#FFFFFF"
+FOOTER_TEXT_COLOR = "#969BA0"
+ACCENT_COLOR = "#00B074"
+
+
+# --- Размеры ---
+LEFT_PANEL_WIDTH = 344
+WINDOW_WIDTH = 1400
+WINDOW_HEIGHT = 1022
+BUTTON_WIDTH = 250
+BUTTON_HEIGHT = 54
+BUTTON_X = 62
+BUTTON_Y_START = 180
+BUTTON_Y_SPACING = 15
+AVATAR_SIZE = (48, 48)
+
+# --- Шрифты ---
+DEFAULT_FONT = ("Arial", 18)
+BOLD_FONT = ("Arial", 18, "bold")
+TITLE_BOLD_FONT = ("Arial", 42, "bold")
+FOOTER_FONT = ("Arial", 12)
+
+#  Шрифты для таблицы tksheet.  Имя, размер, начертание
+TABLE_FONT = ("Arial", 14, "normal")        # !!!
+TABLE_HEADER_FONT = ("Arial", 16, "bold")   # !!!
+
+# --- Логирование ---
+LOG_LEVEL = logging.DEBUG
+LOG_FORMAT = "%(asctime)s - %(levelname)s - %(name)s - %(module)s:%(lineno)d - %(message)s"
+LOG_FILE = "app.log"
+MAX_LOG_SIZE = 1024 * 1024 * 5  # 5 MB
+BACKUP_COUNT = 5
+
+
+File directory: main.py, and it contains following code: 
+# main.py
+import tkinter as tk
+import customtkinter as ctk  # Оставляем CustomTkinter
+from gui.main_window import MainWindow
+from db.database import Database
+from config import DATABASE_PATH
+import logging
+from gui.utils import configure_logging
+from config import LOG_LEVEL, LOG_FORMAT, LOG_FILE, MAX_LOG_SIZE, BACKUP_COUNT
+# from tkinterdnd2 import TkinterDnD  # НЕ НУЖЕН здесь!
+
+log = logging.getLogger(__name__)
+
+
+def main():
+    configure_logging(LOG_LEVEL, LOG_FORMAT, LOG_FILE,
+                      MAX_LOG_SIZE, BACKUP_COUNT)
+
+    log.info("Запуск приложения")
+
+    db = Database()
+    if db.conn is None:
+        log.critical(
+            "Не удалось подключиться к базе данных. Завершение работы.")
+        return
+
+    root = ctk.CTk()  # !!! Возвращаем CustomTkinter!
+    ctk.set_appearance_mode("system")  # Можно указать тему
+
+    app = MainWindow(root, db)
+    root.mainloop()
+
+    db.close()
+    log.info("Приложение завершило работу.")
+
+
+if __name__ == "__main__":
+    main()
+
+File directory: database.py, and it contains following code: 
+# db/database.py
+import sqlite3
+from config import DATABASE_PATH
+import db.queries as q  # Импортируем модуль queries
+import logging
+
+
+log = logging.getLogger(__name__)
+
+
+class Database:
+    """
+    Класс для взаимодействия с базой данных SQLite.
+    """
+
+    def __init__(self, db_path=DATABASE_PATH):
+        """
+        Инициализирует подключение к базе данных.
+        """
+        log.debug(f"Инициализация объекта Database с путём к БД: {db_path}")
+        self.conn = None
+        self.cursor = None
+        try:
+            self.conn = sqlite3.connect(db_path)
+            self.cursor = self.conn.cursor()
+            log.debug(f"Успешное подключение к базе данных: {db_path}")
+        except sqlite3.Error as e:
+            log.error(f"Ошибка подключения к базе данных: {e}")
+
+    def execute_query(self, query, params=None):
+        """
+        Выполняет SQL-запрос (INSERT, UPDATE, DELETE и т.д.).
+        """
+        log.debug(f"Выполнение запроса: {query} с параметрами: {params}")
+        try:
+            if params:
+                self.cursor.execute(query, params)
+            else:
+                self.cursor.execute(query)
+            self.conn.commit()
+            log.debug("Запрос успешно выполнен")
+            return True
+        except sqlite3.Error as e:
+            log.exception(
+                f"Ошибка выполнения SQL: {e}, запрос: {query}, параметры: {params}")
+            self.conn.rollback()
+            return False
+
+    def fetch_all(self, query, params=None):
+        """
+        Выполняет SQL-запрос и возвращает все результаты (SELECT).
+        """
+        log.debug(
+            f"Выполнение запроса fetch_all: {query} с параметрами: {params}")
+        try:
+            if params:
+                self.cursor.execute(query, params)
+            else:
+                self.cursor.execute(query)
+            result = self.cursor.fetchall()
+            log.debug(f"Запрос выполнен, получено {len(result)} строк")
+            return result
+        except sqlite3.Error as e:
+            log.exception(
+                f"Ошибка выполнения SQL: {e}, запрос: {query}, параметры: {params}")
+            return None
+
+    def fetch_one(self, query, params=None):
+        """
+        Выполняет SQL-запрос и возвращает один результат (SELECT).
+        """
+        log.debug(
+            f"Выполнение запроса fetch_one: {query} с параметрами: {params}")
+        try:
+            if params:
+                self.cursor.execute(query, params)
+            else:
+                self.cursor.execute(query)
+            result = self.cursor.fetchone()
+            log.debug(f"Запрос выполнен, результат: {result}")
+            return result
+
+        except sqlite3.Error as e:
+            log.exception(
+                f"Ошибка выполнения SQL: {e}, запрос: {query}, параметры: {params}")
+            return None
+
+    def close(self):
+        """
+        Закрывает соединение с базой данных.
+        """
+        log.debug("Закрытие соединения с базой данных")
+        if self.conn:
+            self.conn.close()
+            log.debug("Соединение с базой данных закрыто.")
+
+
+File directory: department_repository.py, and it contains following code: 
+# db/department_repository.py
+import logging
+from db.database import Database  # !!!
+import db.queries as q
+
+log = logging.getLogger(__name__)
+
+
+class DepartmentRepository:
+    def __init__(self, db: Database):
+        self.db = db
+
+    def get_all(self):
+        log.debug(f"Вызван get_all")
+        result = self.db.fetch_all(q.GET_DEPARTMENTS)  # !!!
+        log.debug(f"get_departments вернул: {result}")
+        return result
+
+    def get_by_name(self, department_name):
+        log.debug(
+            f"Вызван get_department_by_name с department_name='{department_name}'")
+
+        result = self.db.fetch_all(
+            q.GET_DEPARTMENT_BY_NAME, (department_name,))
+        log.debug(f"get_department_by_name вернул: {result}")
+        return result
+
+
+File directory: employee_repository.py, and it contains following code: 
+# db/employee_repository.py
+from db.database import Database  # Импортируем Database
+import db.queries as q  # Импортируем SQL запросы
+
+import logging
+log = logging.getLogger(__name__)
+
+
+class EmployeeRepository:  # !!! название класса
+    def __init__(self, db: Database):
+        self.db = db
+
+    def get_employees(self, search_term=None):
+        """
+        Получает список сотрудников с поиском.
+        """
+        log.debug(
+            f"Вызов get_employees с параметрами: search_term={search_term}")
+
+        #  Собираем запрос
+        query = q.GET_EMPLOYEES  # Основной запрос
+        params = []
+
+        if search_term:
+            # Добавляем условие поиска, используя именованные параметры
+            query += q.GET_EMPLOYEES_SEARCH
+            params = {"search_term": f"%{search_term}%"}  # !!!
+
+        query += q.GET_EMPLOYEES_ORDER_BY  # Добавляем сортировку
+
+        log.debug(f"Итоговый запрос: {query}, параметры: {params}")
+
+        data = self.db.fetch_all(query, params)
+        if data is None:
+            log.warning("get_employees вернул None")
+            return None, 0
+
+        #  Запрос для подсчета количества записей (с учетом поиска).
+        count_query = q.GET_EMPLOYEES_COUNT
+        count_params = []
+        if search_term:
+            count_query += q.GET_EMPLOYEES_COUNT_SEARCH  # !!!
+            count_params = {"search_term": f"%{search_term}%"}
+
+        log.debug(
+            f"Запрос для подсчета количества: {count_query}, параметры: {count_params}")
+        total_rows = self.db.fetch_one(count_query, count_params)[0]
+        log.debug(
+            f"get_employees: общее количество строк: {total_rows}, получено данных {len(data) if data else 0}")
+
+        return data, total_rows
+
+    def get_employee_by_personnel_number(self, personnel_number):
+        log.debug(
+            f"Вызов get_employee_by_personnel_number с personnel_number={personnel_number}")
+        result = self.db.fetch_one(
+            q.GET_EMPLOYEE_BY_PERSONNEL_NUMBER, (personnel_number,))
+        log.debug(f"get_employee_by_personnel_number вернул: {result}")
+        return result
+
+    def insert_employee(self, personnel_number, lastname, firstname, middlename, birth_date_str,
+                        gender_id, position_id, department_id, state_id):
+        """
+        Добавление нового сотрудника
+        """
+        log.debug(
+            f"Вызван insert_employee с данными: personnel_number={personnel_number}, lastname={lastname}, firstname={firstname}, middlename={middlename}, birth_date_str={birth_date_str}, gender_id={gender_id}, position_id={position_id}, department_id={department_id}, state_id={state_id}")
+        params = (personnel_number, lastname, firstname, middlename, birth_date_str,
+                  gender_id, position_id, department_id, state_id)
+        result = self.db.execute_query(q.INSERT_EMPLOYEE, params)
+        log.debug(f"insert_employee вернул: {result}")  # !!!
+        return result
+
+    def delete_employee(self, personnel_number):
+        log.debug(
+            f"Вызов delete_employee с personnel_number={personnel_number}")
+        result = self.db.execute_query(q.DELETE_EMPLOYEE, (personnel_number,))
+        log.debug(f"delete_employee вернул: {result}")
+        return result
+
+    def update_employee(self, personnel_number, lastname, firstname, middlename, birth_date_str,
+                        gender_id, position_id, department_id, state_id):
+        log.debug(
+            f"Вызов update_employee с данными: personnel_number={personnel_number}, lastname={lastname}, firstname={firstname}, middlename={middlename}, birth_date_str={birth_date_str}, gender_id={gender_id}, position_id={position_id}, department_id={department_id}, state_id={state_id}")
+
+        params = (lastname, firstname, middlename, birth_date_str,
+                  gender_id, position_id, department_id, state_id, personnel_number)
+        result = self.db.execute_query(q.UPDATE_EMPLOYEE, params)
+        log.debug(f"update_employee вернул: {result}")
+        return result
+
+    def personnel_number_exists(self, personnel_number):
+        """Проверяет, существует ли сотрудник с заданным табельным номером."""
+        log.debug(
+            f"Проверка существования табельного номера: {personnel_number}")
+        result = self.db.fetch_one(
+            "SELECT 1 FROM Employees WHERE PersonnelNumber = ?", (personnel_number,))
+        log.debug(f"Результат проверки: {result is not None}")
+        return result is not None
+
+
+File directory: gender_repository.py, and it contains following code: 
+# db/gender_repository.py
+import logging
+from db.database import Database  # Database
+import db.queries as q
+
+
+log = logging.getLogger(__name__)
+
+
+class GenderRepository:
+    def __init__(self, db: Database):
+        self.db = db
+
+    def get_all(self):
+        log.debug(f"Вызван get_all")
+        result = self.db.fetch_all(q.GET_GENDERS)  # Используем self.db
+        log.debug(f"get_all вернул: {result}")
+        return result
+
+    def get_by_id(self, gender_id):
+        log.debug(f"Вызван get_gender_id с gender_id={gender_id}")
+        result = self.db.fetch_one(
+            q.GET_GENDER_ID, (gender_id,))  # Используем self.db
+        log.debug(f"get_gender_id вернул: {result[0] if result else None}")
+        return result[0] if result else None
+
+    def get_by_name(self, name):
+        return self.get_by_id(name)
+
+
+File directory: position_repository.py, and it contains following code: 
+# db/position_repository.py
+import logging
+from db.database import Database
+import db.queries as q
+
+log = logging.getLogger(__name__)
+
+
+class PositionRepository:
+    def __init__(self, db: Database):
+        self.db = db
+
+    def get_all(self):
+        log.debug("Вызов get_all")
+        result = self.db.fetch_all(q.GET_ALL_POSITIONS)
+        log.debug(f"get_all вернул: {result}")
+        return result
+
+    def get_by_id(self, position_id):
+        """
+        Возвращает ID должности по названию.
+        """
+        log.debug(f"Вызван get_position_id с position_id={position_id}")
+        result = self.db.fetch_one(
+            q.GET_POSITION_ID, (position_id,))  # !!! self.db
+        log.debug(f"get_position_id вернул: {result[0] if result else None}")
+        return result[0] if result else None
+
+    def get_by_name(self, name):
+        return self.get_by_id(name)
+
+    def get_departments_for_position(self, position_id):
+        log.debug(
+            f"Вызов get_departments_for_position с position_id={position_id}")
+        result = self.db.fetch_all(
+            q.GET_DEPARTMENTS_FOR_POSITION, (position_id,))  # !!!
+        log.debug(f"get_departments_for_position вернул: {result}")
+        return result
+
+    def get_positions(self):
+        log.debug("Вызов get_positions")
+        result = self.db.fetch_all(q.GET_POSITIONS)  # !!!
+        log.debug(f"get_positions вернул: {result}")
+        return result
+
+
+File directory: queries.py, and it contains following code: 
+# db/queries.py
+
+# --- Сотрудники ---
+
+# Получение всех сотрудников (без пагинации, но с возможностью поиска)
+GET_EMPLOYEES = """
+    SELECT
+        E.PersonnelNumber,
+        E.LastName,
+        E.FirstName,
+        E.MiddleName,
+        E.BirthDate,
+        G.GenderName,
+        P.Name AS PositionName,
+        D.Name AS DepartmentName,
+        S.StateName
+    FROM Employees AS E
+    JOIN Genders AS G ON E.GenderID = G.ID
+    JOIN Positions AS P ON E.PositionID = P.ID
+    JOIN Departments AS D ON E.DepartmentID = D.ID
+    JOIN States AS S ON E.StateID = S.ID
+    WHERE 1=1  -- Заглушка для WHERE
+"""
+
+# Дополнение к запросу GET_EMPLOYEES для поиска
+GET_EMPLOYEES_SEARCH = """
+   AND (E.PersonnelNumber LIKE :search_term
+       OR E.LastName LIKE :search_term
+       OR E.FirstName LIKE :search_term
+       OR E.MiddleName LIKE :search_term
+       OR E.BirthDate LIKE :search_term
+       OR G.GenderName LIKE :search_term
+       OR P.Name LIKE :search_term
+       OR D.Name LIKE :search_term
+       OR S.StateName LIKE :search_term)
+"""
+
+#  Дополнение для сортировки (ORDER BY)
+GET_EMPLOYEES_ORDER_BY = " ORDER BY E.PersonnelNumber"
+
+
+GET_EMPLOYEES_COUNT = """
+    SELECT COUNT(*)
+    FROM Employees AS E
+    JOIN Genders AS G ON E.GenderID = G.ID
+    JOIN Positions AS P ON E.PositionID = P.ID
+    JOIN Departments AS D ON E.DepartmentID = D.ID
+    JOIN States AS S ON E.StateID = S.ID
+    WHERE 1=1 -- Заглушка для WHERE
+"""
+#!!! такой же search, как и для работников
+GET_EMPLOYEES_COUNT_SEARCH = GET_EMPLOYEES_SEARCH
+
+# --- Добавление нового сотрудника ---
+INSERT_EMPLOYEE = """
+    INSERT INTO Employees (PersonnelNumber, LastName, FirstName, MiddleName, BirthDate,
+                          GenderID, PositionID, DepartmentID, StateID)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+"""
+
+# --- Обновление данных сотрудника ---
+UPDATE_EMPLOYEE = """
+    UPDATE Employees
+    SET LastName = ?,
+        FirstName = ?,
+        MiddleName = ?,
+        BirthDate = ?,
+        GenderID = ?,
+        PositionID = ?,
+        DepartmentID = ?,
+        StateID = ?
+    WHERE PersonnelNumber = ?
+"""
+
+# --- Удаление сотрудника ---
+DELETE_EMPLOYEE = "DELETE FROM Employees WHERE PersonnelNumber = ?"
+
+# --- Получение сотрудника по табельному номеру ---
+GET_EMPLOYEE_BY_PERSONNEL_NUMBER = """
+    SELECT
+        E.PersonnelNumber,
+        E.LastName,
+        E.FirstName,
+        E.MiddleName,
+        E.BirthDate,
+        G.GenderName,
+        P.Name AS PositionName,
+        D.Name AS DepartmentName,
+        S.StateName
+    FROM Employees AS E
+    JOIN Genders AS G ON E.GenderID = G.ID
+    JOIN Positions AS P ON E.PositionID = P.ID
+    JOIN Departments AS D ON E.DepartmentID = D.ID
+    JOIN States AS S ON E.StateID = S.ID
+    WHERE E.PersonnelNumber = ?
+"""
+
+# --- Справочники ---
+
+GET_GENDERS = "SELECT ID, GenderName FROM Genders"
+GET_GENDER_ID = "SELECT ID FROM Genders WHERE GenderName = ?"
+
+GET_ALL_POSITIONS = "SELECT ID, Name FROM Positions"
+GET_POSITION_ID = "SELECT ID FROM Positions WHERE Name = ?"
+GET_POSITIONS = "SELECT Name FROM Positions"  # !!!
+
+GET_STATES = "SELECT ID, StateName FROM States"
+GET_STATE_ID = "SELECT ID FROM States WHERE StateName = ?"
+
+GET_DEPARTMENTS = "SELECT ID, Name FROM Departments"
+GET_DEPARTMENT_BY_NAME = "SELECT ID FROM Departments WHERE Name = ?"
+
+GET_DEPARTMENTS_FOR_POSITION = """
+    SELECT D.Name
+    FROM Departments AS D
+    INNER JOIN PositionDepartments AS PD ON D.ID = PD.DepartmentID
+    WHERE PD.PositionID = ?
+"""
+# --- Дополнительные запросы (если понадобятся в будущем) ---
+
+
+File directory: state_repository.py, and it contains following code: 
+# db/state_repository.py
+import logging
+from db.database import Database  # !!!
+import db.queries as q
+
+log = logging.getLogger(__name__)
+
+
+class StateRepository:  # !!!
+    def __init__(self, db: Database):  # !!!
+        self.db = db
+
+    def get_all(self):
+        log.debug(f"Вызван get_all")
+        result = self.db.fetch_all(q.GET_STATES)
+        log.debug(f"get_all вернул: {result}")
+        return result
+
+    def get_by_id(self, state_id):
+        log.debug(f"Вызван get_by_id с state_id={state_id}")
+        result = self.db.fetch_one(q.GET_STATE_ID, (state_id,))
+        log.debug(f"get_state_id вернул: {result[0] if result else None}")
+        return result[0] if result else None
+
+    def get_by_name(self, name):
+        return self.get_by_id(name)
+
+
+File directory: absences_frame.py, and it contains following code: 
+
+
+File directory: base_table_frame.py, and it contains following code: 
+# gui/base_table_frame.py
+import customtkinter as ctk
+from tksheet import Sheet
+from config import *
+import logging
+from abc import ABC, abstractmethod
+
+log = logging.getLogger(__name__)
+
+
+class BaseTableFrame(ctk.CTkFrame, ABC):
+    """
+    Абстрактный базовый класс для вкладок с табличным отображением данных.
+    """
+
+    def __init__(self, master, db, table_width=1136, table_height=350):
+        super().__init__(master, fg_color=MAIN_BG_COLOR)
+        self.db = db
+        self.current_page = 1
+        self.rows_per_page = 10
+        self.total_rows = 0
+        self.data = []
+        self.table_width = table_width  # !!!
+        self.table_height = table_height  # !!!
+
+    @abstractmethod
+    def load_data(self, search_term=None):
+        """Абстрактный метод: загрузка данных"""
+        raise NotImplementedError
+
+    @abstractmethod
+    def display_data(self, search_term=None):
+        """
+        Абстрактный метод: отображает данные в таблице
+        """
+        raise NotImplementedError  # абстрактный!
+
+    def create_table_widgets(self):
+        """
+        Создает виджеты таблицы и пагинации.
+        """
+        log.debug("Создание виджетов таблицы (BaseTableFrame)")
+
+        self.table_wrapper = ctk.CTkFrame(
+            self, fg_color="white", width=1136, height=400)
+        # !!! table_wrapper размещается *относительно* BaseTableFrame (self).
+        #     Координаты и размеры пока оставим, как есть, потом настроим.
+        self.table_wrapper.place(x=27, y=195 + 40 + 27)
+
+        self.table = Sheet(self.table_wrapper,  # Родитель
+                           width=self.table_width,     # !!!
+                           height=self.table_height,    # !!!
+                           font=TABLE_FONT,  # шрифты
+                           header_font=TABLE_HEADER_FONT
+                           )
+
+        # !!! Используем grid ВНУТРИ table_wrapper
+        self.table.grid(row=0, column=0, sticky="nsew",
+                        padx=10, pady=10)  # !!!
+
+        self.table.enable_bindings(("single_select",
+                                    "row_select",
+                                    "column_width_resize",
+                                    "arrowkeys",
+                                    "copy",
+                                    "paste",
+                                    "delete",
+                                    "edit_cell",
+                                    "rc_select"
+                                    ))
+        self.table.disable_bindings("row_height_resize", "cut", "undo", "redo",
+                                    "rc_insert_row", "rc_delete_row",
+                                    "rc_insert_column", "rc_delete_column", "hide_rows", "hide_columns")
+        # --- Пагинация (теперь *вне* table_wrapper) ---
+        self.pagination_frame = ctk.CTkFrame(
+            self.table_wrapper, fg_color="transparent")
+        # !!! Используем grid, строка 1, колонка 0
+        self.pagination_frame.grid(
+            row=1, column=0, sticky="ew", padx=10, pady=(0, 10))  # !!!
+
+        self.prev_button = ctk.CTkButton(
+            self.pagination_frame,
+            text="<",
+            font=DEFAULT_FONT,
+            command=self.prev_page,
+            width=30,
+            height=30,
+            fg_color="#E9ECEF",
+            hover_color=BUTTON_HOVER_COLOR,
+            text_color="#000000",
+            border_width=0,
+            border_color="#CED4DA",
+            state="disabled"
+        )
+        self.next_button = ctk.CTkButton(
+            self.pagination_frame,
+            text=">",
+            font=DEFAULT_FONT,
+            command=self.next_page,
+            width=30,
+            height=30,
+            fg_color=BUTTON_BG_COLOR,
+            hover_color=BUTTON_HOVER_COLOR,
+            text_color="#000000",
+            border_width=1,
+            border_color="#CED4DA",
+            state="disabled"
+        )
+
+        self.page_label = ctk.CTkLabel(self.pagination_frame, text="Страница 1 / 1",
+                                       font=("Arial", 16, "bold"), text_color="#000000")
+
+        self.prev_button.pack(side="left", padx=(0, 5))
+        self.page_label.pack(side="left", padx=5)
+        self.next_button.pack(side="left", padx=(5, 0))
+
+        # !!! Очень важно: конфигурируем grid, чтобы таблица растягивалась !!!
+        self.table_wrapper.grid_rowconfigure(0, weight=1)
+        self.table_wrapper.grid_columnconfigure(0, weight=1)
+
+    def prev_page(self):
+        """Переходит на предыдущую страницу."""
+        if self.current_page > 1:
+            self.current_page -= 1
+            self.display_data()
+
+    def next_page(self):
+        """Переходит на следующую страницу."""
+        if self.current_page < self.get_total_pages():
+            self.current_page += 1
+            self.display_data()
+
+    def update_page_label(self):
+        """Обновляет метку с номером текущей страницы и общим количеством страниц."""
+        total_pages = self.get_total_pages()
+        if total_pages == 0:
+            self.page_label.configure(text="Страница 1 / 1")
+        else:
+            self.page_label.configure(
+                text=f"Страница {self.current_page} / {total_pages}")
+
+    def get_total_pages(self):
+        """Вычисляет и возвращает общее количество страниц."""
+        return (self.total_rows + self.rows_per_page - 1) // self.rows_per_page
+
+    def update_buttons_state(self):
+        """Обновляет состояние кнопок пагинации."""
+        if self.current_page == 1:
+            self.prev_button.configure(
+                state="disabled", border_width=0, fg_color="#E9ECEF")
+        else:
+            self.prev_button.configure(
+                state="normal", border_width=1, fg_color="transparent")
+
+        if self.current_page >= self.get_total_pages():
+            self.next_button.configure(
+                state="disabled", border_width=0, fg_color="#E9ECEF")
+        else:
+            self.next_button.configure(
+                state="normal", border_width=1, fg_color="transparent")
+
+
+File directory: dashboard_frame.py, and it contains following code: 
+
+
+File directory: employees_frame.py, and it contains following code: 
+# gui/employees_frame.py
+
+import customtkinter as ctk
+from config import *
+from .utils import load_icon  # load_icon
+# !!! Sheet больше не импортируется здесь!
+from .dialogs.add_employee_dialog import AddEmployeeDialog
+from .dialogs.edit_employee_dialog import EditEmployeeDialog
+from .dialogs.import_dialog import ImportDialog
+from db.employee_repository import EmployeeRepository
+from db.gender_repository import GenderRepository  # !!!
+from db.position_repository import PositionRepository  # !!!
+from db.state_repository import StateRepository  # !!!
+from db.department_repository import DepartmentRepository  # !!!
+from tkinter import messagebox
+import logging
+import csv
+import xml.etree.ElementTree as ET
+import os
+import datetime
+import codecs
+
+# !!! Импортируем базовый класс
+from .base_table_frame import BaseTableFrame
+
+log = logging.getLogger(__name__)
+
+# !!! Наследуемся от BaseTableFrame
+
+
+class EmployeesFrame(BaseTableFrame):
+
+    def __init__(self, master, db):
+        super().__init__(master, db)  # Вызываем конструктор BaseTableFrame
+        self.repository = EmployeeRepository(db)
+        self.gender_repository = GenderRepository(db)    # !!!
+        self.position_repository = PositionRepository(db)  # !!!
+        self.state_repository = StateRepository(db)       # !!!
+        self.department_repository = DepartmentRepository(db)  # !!!
+        self.create_widgets()
+        self.load_data()
+        self.display_data()
+
+    def create_widgets(self):
+        """
+        Создает виджеты, специфичные для EmployeesFrame.
+        """
+        log.debug("Создание виджетов для EmployeesFrame")
+
+        # --- Заголовок ---
+        title_label = ctk.CTkLabel(
+            self,
+            text="СОТРУДНИКИ",
+            font=("Arial", 46, "bold"),
+            text_color=LABEL_TEXT_COLOR,
+            anchor="w"
+        )
+        title_label.place(x=27, y=40)
+
+        # --- Кнопка "Добавить" ---
+        self.add_button = ctk.CTkButton(
+            self,
+            text="  НОВАЯ ЗАПИСЬ",
+            font=("Arial", 18, "bold"),
+            command=self.add_employee,
+            fg_color=BUTTON_BG_COLOR,
+            text_color="#0057FC",
+            border_width=2,
+            border_color="#0057FC",
+            hover_color=BUTTON_HOVER_COLOR,
+            corner_radius=12,
+            width=220,
+            height=40,
+            image=load_icon("plus.png", size=(20, 20)),
+            compound="left"
+        )
+        self.add_button.place(x=27, y=139)
+
+        # --- Кнопка "Редактировать" ---
+        self.edit_button = ctk.CTkButton(
+            self,
+            text="  ИЗМЕНИТЬ",
+            font=("Arial", 18, "bold"),
+            command=self.edit_employee,
+            fg_color=BUTTON_BG_COLOR,
+            text_color="#FF8C00",  # Оранжевый
+            border_width=2,
+            border_color="#FF8C00",
+            hover_color="#FFB347",  # Светлее при наведении
+            corner_radius=12,
+            width=180,  # Ширина по тексту
+            height=40,
+            image=load_icon("edit.png", size=(20, 20)),  # Другая иконка
+            compound="left"
+        )
+        self.edit_button.place(x=27 + 220 + 27 + 150 + 20, y=139)
+
+        # --- Кнопка "Удалить" ---
+        self.delete_button = ctk.CTkButton(
+            self,
+            text="  УДАЛИТЬ",
+            font=("Arial", 18, "bold"),
+            command=self.delete_employee,
+            fg_color=BUTTON_BG_COLOR,
+            text_color="#FF4136",  # Красный
+            border_width=2,
+            border_color="#FF4136",
+            hover_color=BUTTON_HOVER_COLOR,  # Тот же, что и у других
+            corner_radius=12,
+            width=150,  # Ширина по тексту
+            height=40,
+            image=load_icon("cross.png", size=(20, 20)),  # Другая иконка
+            compound="left"
+        )
+        self.delete_button.place(x=27 + 220 + 27, y=139)
+        # --- Кнопка "Импорт" ---
+        self.import_button = ctk.CTkButton(
+            self,
+            text="  ИМПОРТ",
+            font=("Arial", 18, "bold"),
+            command=self.import_data,
+            fg_color=BUTTON_BG_COLOR,
+            text_color="#4CAF50",
+            border_width=2,
+            border_color="#4CAF50",
+            hover_color=BUTTON_HOVER_COLOR,
+            corner_radius=12,
+            width=220,
+            height=40,
+            image=load_icon("import.png", size=(20, 20)),
+            compound="left"
+        )
+        self.import_button.place(x=27, y=139 + 40 + 20)
+
+        # --- Кнопка "Экспорт" ---
+        self.export_button = ctk.CTkButton(
+            self,
+            text="  ЭКСПОРТ",
+            font=("Arial", 18, "bold"),
+            command=self.export_data,
+            fg_color=BUTTON_BG_COLOR,
+            text_color="#2196F3",
+            border_width=2,
+            border_color="#2196F3",
+            hover_color=BUTTON_HOVER_COLOR,
+            corner_radius=12,
+            width=180,
+            height=40,
+            image=load_icon("export.png", size=(20, 20)),
+            compound="left"
+        )
+        self.export_button.place(x=27 + 220 + 27 + 150 + 20, y=139 + 40 + 20)
+        # --- Поле поиска ---
+        search_entry_width = 257
+        self.search_entry = ctk.CTkEntry(
+            self,
+            placeholder_text="Search...",
+            width=search_entry_width,
+            height=40,
+            font=DEFAULT_FONT,  # шрифт из конфига
+            text_color=LABEL_TEXT_COLOR,  # из конфига
+            placeholder_text_color="gray",
+            fg_color="white"  # Белый фон
+        )
+        self.search_entry.place(
+            x=27 + 220 + 27 + 150 + 20 + 180 + 20, y=139)  # Размещение
+        self.search_entry.bind("<KeyRelease>", self.search)
+        # !!! Создаем виджеты таблицы !!!
+        self.create_table_widgets()
+        # !!!  Заголовки
+        self.table.headers(["Таб. номер", "Фамилия", "Имя", "Отчество", "Дата рожд.",
+                            "Пол", "Должность", "Отдел", "Состояние"])
+        log.debug("Виджеты EmployeesFrame созданы")
+
+    def load_data(self, search_term=None):
+        """Загружает данные о сотрудниках из базы данных."""
+        log.debug("Загрузка данных для EmployeesFrame")
+        if search_term is None:
+            search_term = self.search_entry.get()
+        #  Используем метод get_employees из *репозитория* (пока это self.repository).
+        self.all_data, self.total_rows = self.repository.get_employees(
+            search_term=search_term)
+        if self.all_data is None:
+            log.warning("get_employees вернул None")
+            self.all_data = []
+            self.total_rows = 0
+
+    def display_data(self, search_term=None):
+        """Отображает данные."""
+        log.debug(f"Отображение данных")
+
+        if not self.all_data:  # Если данных нет, загружаем
+            self.load_data()
+
+        if search_term := self.search_entry.get().lower():  # Фильтрация
+            filtered_data = []
+            for row in self.all_data:
+                if any(search_term in str(value).lower() for value in row):  # !!!
+                    filtered_data.append(row)
+            self.data = filtered_data  # filtered_data в self.data.
+            self.total_rows = len(filtered_data)
+        else:
+            self.data = self.all_data  # Используем self.all_data.
+            self.total_rows = len(self.all_data)
+
+        start_index = (self.current_page - 1) * self.rows_per_page
+        end_index = start_index + self.rows_per_page
+        current_page_data = self.data[start_index:end_index]
+        if self.table.total_rows() > 0:
+            self.table.set_sheet_data([[None for _ in range(len(
+                self.table.headers()))] for _ in range(self.table.total_rows())], redraw=False)
+
+        if current_page_data:  # Если данные есть
+            self.table.set_sheet_data(current_page_data)
+        self.table.refresh()
+        self.update_page_label()
+        self.update_buttons_state()
+    # --- Методы, специфичные ИМЕННО для EmployeesFrame ---
+
+    def add_employee(self):
+        """Открывает диалог добавления нового сотрудника."""
+        log.info("Открытие диалога добавления сотрудника")
+        dialog = AddEmployeeDialog(self, self.repository)
+        dialog.wait_window()  # Ждём
+        self.load_data()    #
+        self.display_data()  # после закрытия
+
+    def edit_employee(self):
+        """Открывает диалог редактирования сотрудника."""
+        log.info("Открытие диалога редактирования сотрудника")
+        selected_row = self.table.get_selected_rows()  # Получаем
+        if not selected_row:
+            messagebox.showerror(
+                "Ошибка", "Выберите сотрудника для редактирования!")
+            log.warning("Попытка редактирования без выбора сотрудника")
+            return
+
+        selected_row_index = list(selected_row)[0]
+        personnel_number = self.table.get_cell_data(selected_row_index, 0)
+        employee_data = self.repository.get_employee_by_personnel_number(
+            personnel_number)
+
+        if employee_data is None:
+            messagebox.showerror(
+                "Ошибка", "Не удалось получить данные о сотруднике!")
+            log.error(
+                f"Не удалось получить данные сотрудника с табельным номером {personnel_number}")
+            return
+
+        dialog = EditEmployeeDialog(
+            self, self.repository, employee_data)  # Передаем данные в
+        dialog.wait_window()  # Ждем
+        self.load_data()          # Обновляем
+        self.display_data()
+
+    def delete_employee(self):
+        """Удаляет выбранного сотрудника."""
+        log.info("Попытка удаления сотрудника")
+        selected_row = self.table.get_selected_rows()  # Получаем индексы
+
+        if not selected_row:
+            messagebox.showerror("Ошибка", "Выберите сотрудника для удаления!")
+            log.warning("Попытка удаления без выбора сотрудника")
+            return
+
+        # tksheet возвращает генератор
+        selected_row_index = list(selected_row)[0]
+        personnel_number = self.table.get_cell_data(selected_row_index, 0)
+
+        if messagebox.askyesno("Подтверждение",
+                               f"Вы уверены, что хотите удалить сотрудника с табельным номером {personnel_number}?"):
+            if self.repository.delete_employee(personnel_number):
+                messagebox.showinfo("Успех", "Сотрудник удален.")
+                log.info(
+                    f"Сотрудник с табельным номером {personnel_number} удален")
+
+                # --- Корректировка страницы ---
+                self.load_data()  # Обновляем данные
+                total_pages = self.get_total_pages()
+                if self.current_page > total_pages:
+                    self.current_page = max(1, total_pages)
+                # ----------------------------------
+
+                self.display_data()  # Отображаем данные
+            else:
+                messagebox.showerror(
+                    "Ошибка", "Не удалось удалить сотрудника.")
+                log.error(
+                    f"Не удалось удалить сотрудника с табельным номером {personnel_number}")
+
+    def search(self, event):
+        if self.current_page != 1:
+            self.current_page = 1
+        self.load_data()
+        self.display_data()
+
+    def import_data(self):
+        """
+        Обработчик нажатия на кнопку "Импорт".  Открывает диалог импорта.
+        """
+        log.info("Открытие диалога импорта")
+        # !!! Передаем ВСЕ репозитории
+        dialog = ImportDialog(self, self.repository, self.gender_repository,
+                              self.position_repository, self.state_repository,
+                              self.department_repository)
+        dialog.wait_window()
+        self.load_data()
+        self.display_data()
+
+    def export_data(self):
+        """Экспортирует данные в CSV и XML."""
+        log.info("Экспорт данных о сотрудниках")
+
+        data, _ = self.repository.get_employees()
+        if not data:
+            messagebox.showinfo("Экспорт", "Нет данных для экспорта.")
+            log.info("Нет данных для экспорта")  # !!!
+            return
+        export_dir = "export"  # Путь
+        now = datetime.datetime.now()
+        date_dir = os.path.join(export_dir, now.strftime("%Y-%m-%d"))
+        os.makedirs(date_dir, exist_ok=True)
+        timestamp = now.strftime("%H-%M-%S")  #
+        csv_filename = os.path.join(date_dir, f"employees_{timestamp}.csv")
+        xml_filename = os.path.join(date_dir, f"employees_{timestamp}.xml")
+
+        # --- Экспорт в CSV ---
+        try:
+            with codecs.open(csv_filename, "w", "utf-8-sig") as csvfile:  # BOM
+                #  Заголовки столбцов
+                fieldnames = [
+                    "PersonnelNumber", "LastName", "FirstName", "MiddleName",
+                    "BirthDate", "GenderName", "PositionName", "DepartmentName", "StateName"
+                ]
+                writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+                writer.writeheader()
+                for row in data:
+                    #  Преобразуем в словарь
+                    row_dict = {
+                        "PersonnelNumber": row[0],
+                        "LastName": row[1],
+                        "FirstName": row[2],
+                        "MiddleName": row[3],
+                        "BirthDate": row[4],
+                        "GenderName": row[5],
+                        "PositionName": row[6],
+                        "DepartmentName": row[7],
+                        "StateName": row[8]
+                    }
+                    writer.writerow(row_dict)
+            log.info(f"Данные экспортированы в CSV: {csv_filename}")
+
+        except Exception as e:
+            messagebox.showerror(
+                "Ошибка экспорта", f"Ошибка при экспорте в CSV: {e}")
+            log.exception(f"Ошибка при экспорте в CSV: {e}")
+            return
+
+        # --- Экспорт в XML ---
+        try:
+            root = ET.Element("Employees")
+            for row in data:  # Перебираем
+                employee = ET.SubElement(root, "Employee")
+                ET.SubElement(employee, "PersonnelNumber").text = str(row[0])
+                ET.SubElement(employee, "LastName").text = row[1]
+                ET.SubElement(employee, "FirstName").text = row[2]
+                ET.SubElement(
+                    employee, "MiddleName").text = row[3] if row[3] else ""  # !!!
+                ET.SubElement(employee, "BirthDate").text = row[4]          #
+                ET.SubElement(employee, "GenderName").text = row[5]          #
+                ET.SubElement(employee, "PositionName").text = row[6]   #
+                ET.SubElement(employee, "DepartmentName").text = row[7]
+                ET.SubElement(employee, "StateName").text = row[8]    #
+
+            tree = ET.ElementTree(root)
+            ET.indent(tree, space="  ")
+            tree.write(xml_filename, encoding="utf-8", xml_declaration=True)
+            log.info(f"Данные экспортированы в XML: {xml_filename}")
+
+        except Exception as e:
+            messagebox.showerror(
+                "Ошибка экспорта", f"Ошибка при экспорте в XML: {e}")
+            log.exception(f"Ошибка при экспорте в XML: {e}")
+            return
+
+        messagebox.showinfo("Экспорт",
+                            f"Данные успешно экспортированы в:\n{csv_filename}\n{xml_filename}")
+
+
+File directory: events_frame.py, and it contains following code: 
+
+
+File directory: main_window.py, and it contains following code: 
+# gui/main_window.py
+import customtkinter as ctk
+from tkinter import Label, PhotoImage
+from PIL import Image, ImageTk
+from .utils import load_icon, relative_to_assets
+from config import *
+import random
+import threading
+import time
+import colorsys
+import logging
+
+# Импортируем классы наших вкладок
+from .employees_frame import EmployeesFrame
+# from .absences_frame import AbsencesFrame
+# from .events_frame import EventsFrame
+# from .reports_frame import ReportsFrame
+# from .users_frame import UsersFrame
+# from .dashboard_frame import DashboardFrame
+
+log = logging.getLogger(__name__)  # !!!
+
+
+class MainWindow(ctk.CTkFrame):
+    """
+    Главное окно приложения.
+
+    Содержит левую панель с кнопками навигации и область контента
+    для отображения вкладок (фреймов).
+    """
+
+    def __init__(self, master, db):
+        """
+        Инициализирует главное окно.
+
+        Args:
+            master (ctk.CTk):  Родительский виджет (обычно корневое окно Tk).
+            db (Database): Объект базы данных.
+        """
+        super().__init__(master)
+        self.master = master
+        self.db = db
+        self.master.geometry(f"{WINDOW_WIDTH}x{WINDOW_HEIGHT}")
+        self.master.title("АИС Кадры")
+        # self.master.resizable(False, False)  # Раскомментируйте, если не нужно изменять размер
+        self.configure(fg_color=MAIN_BG_COLOR)
+        log.debug("Инициализировано главное окно")  # !!!
+
+        # --- Шрифты ---
+        #  Используем шрифты из config.py
+        self.default_font = DEFAULT_FONT
+        self.bold_font = BOLD_FONT
+        self.title_bold_font = TITLE_BOLD_FONT
+
+        self.rgb_mode = False  # Флаг RGB-режима
+        self.rgb_thread = None  # Поток для RGB-режима
+
+        self.create_widgets()
+        self.current_frame = None  # !!! Добавляем атрибут для хранения текущего фрейма
+
+    def create_widgets(self):
+        """
+        Создает виджеты главного окна.
+        """
+        log.debug("Начало создания виджетов")  # !!!
+        # --- Левая панель (белая) ---
+        self.left_frame = ctk.CTkFrame(
+            self.master, fg_color=LEFT_PANEL_BG_COLOR, width=LEFT_PANEL_WIDTH, height=WINDOW_HEIGHT)
+        self.left_frame.pack_propagate(False)  # Чтобы фрейм не сжимался
+        self.left_frame.pack(side="left", fill="y")
+
+        # --- "Кадры" (заголовок) ---
+        self.title_label = ctk.CTkLabel(
+            self.left_frame,
+            text="Кадры",
+            font=self.title_bold_font,
+            text_color=BUTTON_TEXT_COLOR,  # Используем цвет из конфига
+            anchor="nw",
+            padx=62,
+            pady=40,
+        )
+        self.title_label.pack()
+
+        # --- Иконка (логотип) ---
+        image_image_2 = Image.open(relative_to_assets("image_2.png"))
+        image_photo_2 = ImageTk.PhotoImage(image_image_2)
+        self.image_label_2 = ctk.CTkLabel(
+            self.left_frame, image=image_photo_2, text="", bg_color="white")  # !!!  text=""
+        self.image_label_2.image = image_photo_2  # !!!  Сохраняем ссылку
+        self.image_label_2.place(x=28, y=40)
+
+        # --- Подпись ---
+        self.subtitle_label = ctk.CTkLabel(
+            self.left_frame,
+            text="Автоматизированная Система\nУправления Кадрами",
+            font=("Arial", 14),
+            text_color="#B9BABD",
+            anchor="nw",
+            padx=62,
+            pady=0,
+        )
+        self.subtitle_label.pack()
+
+        # --- Кнопки меню (CustomTkinter) ---
+        self.buttons = []  # Список для хранения кнопок
+        self.active_rectangle_label = None  # Для отслеживания активной кнопки
+
+        button_configs = [
+            ("Главная", "home.png", self.show_dashboard),
+            ("Сотрудники", "users.png", self.show_employees),
+            ("Кадровые события", "edit.png", self.show_events),
+            ("Отсутствия", "list.png", self.show_absences),
+            ("Отчеты", "chart-histogram.png", self.show_reports),
+            ("Пользователи", "user.png", self.show_users),
+        ]
+
+        for i, (text, icon_name, command) in enumerate(button_configs):
+            button = ctk.CTkButton(
+                master=self.left_frame,
+                text=text,
+                corner_radius=15,
+                command=lambda i=i: self.button_click(i),  # Используем лямбду
+                fg_color=BUTTON_BG_COLOR,
+                bg_color=BUTTON_BG_COLOR,
+                hover_color=BUTTON_HOVER_COLOR,
+                text_color=BUTTON_TEXT_COLOR,
+                width=BUTTON_WIDTH,  # Используем константы
+                height=BUTTON_HEIGHT,
+                font=self.default_font,
+                image=load_icon(icon_name),  # Загружаем иконку
+                anchor="w"  # Выравнивание текста по левому краю
+            )
+            button.place(x=BUTTON_X, y=BUTTON_Y_START +
+                         i * (BUTTON_HEIGHT + BUTTON_Y_SPACING))
+            self.buttons.append(button)  # Добавляем кнопку в список
+
+        # --- Информация о пользователе ---
+        self.user_info_frame = ctk.CTkFrame(
+            self.left_frame, fg_color="transparent")
+        self.user_info_frame.place(x=20, y=900)  # !!!
+
+        avatar_image = Image.open(relative_to_assets("image_1.png"))
+        #  Используем CTkImage
+        self.avatar_photo = ctk.CTkImage(avatar_image, size=AVATAR_SIZE)
+        self.avatar_label = ctk.CTkLabel(  # !!! CTkLabel
+            self.user_info_frame,
+            image=self.avatar_photo,
+            text="",  # !!!
+        )
+        self.avatar_label.image = self.avatar_photo
+        # !!! pack, выравниваем по левому краю
+        self.avatar_label.pack(side="left", padx=(0, 10))
+
+        self.name_role_frame = ctk.CTkFrame(
+            self.user_info_frame, fg_color="transparent")  # Создаём фрейм
+        self.name_role_frame.pack(side="right")  # !!!
+
+        self.user_name_label = ctk.CTkLabel(
+            self.name_role_frame,  # !!!
+            text=DEFAULT_USERNAME,
+            text_color=LABEL_TEXT_COLOR,  # !!!
+            font=("Arial", 16),
+            anchor="nw",
+        )
+        self.user_name_label.pack(anchor="nw")  # !!!
+        self.user_access_label = ctk.CTkLabel(
+            self.name_role_frame,  # !!!
+            text=DEFAULT_USER_ROLE,
+            text_color=ACCENT_COLOR,
+            font=("Arial", 16),
+            anchor="nw"
+        )
+        self.user_access_label.pack(anchor="nw")  # !!!
+
+        # --- Футер ---
+        footer_text1 = ctk.CTkLabel(
+            self.left_frame, text="Made by Victor", text_color=FOOTER_TEXT_COLOR, font=FOOTER_FONT)
+        footer_text1.place(x=20, y=984)
+
+        footer_text2 = ctk.CTkLabel(
+            self.left_frame, text="АСУ “Кадры”\n© 2025 Все права защищены", text_color=FOOTER_TEXT_COLOR, font=FOOTER_FONT
+        )
+        footer_text2.place(x=150, y=984)
+
+        # --- Рамка контента ---
+        self.content_frame = ctk.CTkFrame(
+            self.master, fg_color=MAIN_BG_COLOR, width=WINDOW_WIDTH - LEFT_PANEL_WIDTH, height=WINDOW_HEIGHT)
+        self.content_frame.pack_propagate(False)
+        self.content_frame.pack(side="right", fill="both", expand=True)
+
+        # --- Чекбокс RGB-режима ---
+        self.rgb_checkbox = ctk.CTkCheckBox(
+            self.left_frame,
+            text_color=BUTTON_TEXT_COLOR,  # !!!
+            text="RGB Режим",
+            command=self.toggle_rgb_mode,
+            onvalue=True,
+            offvalue=False,
+            checkbox_width=18,  # !!!  Размеры
+            checkbox_height=18
+        )
+        self.rgb_checkbox.place(x=20, y=850)
+        log.debug("Виджеты созданы")  # !!!
+
+    def start_rgb(self):
+        """
+        Запускает поток для RGB-режима.
+        """
+        log.debug("Запуск RGB-режима")   # !!!
+        self.rgb_thread = threading.Thread(target=self.rgb_mode_loop)
+        self.rgb_thread.daemon = True  # Чтобы поток завершился при закрытии
+        self.rgb_thread.start()
+
+    def button_click(self, button_number):
+        """
+        Обрабатывает нажатие на кнопку меню.
+
+        Args:
+            button_number (int): Индекс нажатой кнопки (начиная с 0).
+        """
+        log.debug(f"Нажата кнопка меню #{button_number}")  # !!!
+        #  Сначала удаляем "прямоугольник", если он есть
+        if self.active_rectangle_label:
+            self.active_rectangle_label.destroy()
+        #  Меняем цвет для всех кнопок
+        for i, button in enumerate(self.buttons):
+            button.configure(fg_color=BUTTON_BG_COLOR,
+                             text_color=BUTTON_TEXT_COLOR, hover_color=BUTTON_HOVER_COLOR)
+
+        #  Меняем цвет и ставим "прямоугольник" для нажатой
+        self.buttons[button_number].configure(
+            fg_color=BUTTON_ACTIVE_BG_COLOR, text_color=BUTTON_ACTIVE_TEXT_COLOR, hover_color=BUTTON_ACTIVE_BG_COLOR
+        )
+
+        self.active_rectangle_label = ctk.CTkLabel(
+            self.left_frame,
+            text="",
+            fg_color=ACCENT_COLOR,  # !!!
+            bg_color=ACCENT_COLOR,
+            width=8,
+            height=54
+        )
+
+        self.active_rectangle_label.place(
+            x=0,  # !!!
+            y=180.0 + button_number * (54 + 15)
+        )
+
+        # Вызываем метод для отображения нужной вкладки
+        if button_number == 0:
+            self.show_dashboard()
+        elif button_number == 1:
+            self.show_employees()
+        elif button_number == 2:
+            self.show_events()
+        elif button_number == 3:
+            self.show_absences()
+        elif button_number == 4:
+            self.show_reports()
+        elif button_number == 5:
+            self.show_users()
+
+    def toggle_rgb_mode(self):
+        """
+        Включает/выключает RGB-режим.
+        """
+        self.rgb_mode = not self.rgb_mode
+        log.debug(f"RGB-режим: {self.rgb_mode}")  # !!!
+        if self.rgb_mode:
+            self.start_rgb()  # запускаем, если врубили
+        else:
+            # Возвращаем обычные цвета
+            self.title_label.configure(text_color=BUTTON_TEXT_COLOR)  # !!!
+            self.user_access_label.configure(text_color=ACCENT_COLOR)
+
+    def rgb_mode_loop(self):
+        """
+        Цикл для изменения цветов в RGB-режиме.
+        """
+        hue = 0  # Начинаем с красного (hue = 0)
+        while self.rgb_mode:
+            #  Конвертируем HSV в RGB (значения от 0.0 до 1.0)
+            r, g, b = colorsys.hsv_to_rgb(hue / 360.0, 1.0, 1.0)
+            #  Переводим RGB в шестнадцатеричный формат (#RRGGBB)
+            hex_color = "#{:02x}{:02x}{:02x}".format(
+                int(r * 255), int(g * 255), int(b * 255))
+
+            self.title_label.configure(text_color=hex_color)
+            self.user_access_label.configure(text_color=hex_color)
+
+            hue += 5  # Увеличиваем тон (скорость изменения цвета)
+            if hue > 360:
+                hue = 0  # Сбрасываем, чтобы начать сначала
+
+            time.sleep(0.05)  # Задержка (скорость переливания)
+
+    def clear_content_frame(self):
+        """
+        Очищает область контента (удаляет все виджеты).
+        """
+        log.debug("Очистка области контента")  # !!!
+        # Удаляем все виджеты из content_frame
+        for widget in self.content_frame.winfo_children():
+            widget.destroy()
+
+    def show_frame(self, frame_class):
+        """
+        Отображает указанный фрейм в области контента.
+
+        Args:
+            frame_class (class): Класс фрейма, который нужно отобразить.
+        """
+        log.debug(f"Отображение фрейма: {frame_class.__name__}")  # !!!
+        # Сначала удаляем текущий фрейм, если он есть
+        if self.current_frame is not None and isinstance(self.current_frame, frame_class):
+            return  # Уже на этой вкладке
+
+        if self.current_frame is not None:
+            self.current_frame.destroy()
+        # Создаем новый фрейм
+        self.current_frame = frame_class(self.content_frame, self.db)
+        self.current_frame.pack(fill="both", expand=True)
+
+    # --- Методы для отображения вкладок ---
+    def show_dashboard(self):
+        """Отображает вкладку 'Главная'."""
+        log.info("Переход на вкладку 'Главная'")  # !!!
+        # self.show_frame(DashboardFrame)  # раскомментировал
+
+    def show_employees(self):
+        """Отображает вкладку 'Сотрудники'."""
+        log.info("Переход на вкладку 'Сотрудники'")   # !!!
+        self.show_frame(EmployeesFrame)
+
+    def show_events(self):
+        """Отображает вкладку 'Кадровые события'."""
+        log.info("Переход на вкладку 'Кадровые события'")  # !!!
+        # self.show_frame(EventsFrame)  # раскомментировал
+
+    def show_absences(self):
+        """Отображает вкладку 'Отсутствия'."""
+        log.info("Переход на вкладку 'Отсутствия'")    # !!!
+        # self.show_frame(AbsencesFrame)  # раскомментировал
+
+    def show_reports(self):
+        """Отображает вкладку 'Отчеты'."""
+        log.info("Переход на вкладку 'Отчеты'")   # !!!
+        # self.show_frame(ReportsFrame)  # раскомментировал
+
+    def show_users(self):
+        """Отображает вкладку 'Пользователи'."""
+        log.info("Переход на вкладку 'Пользователи'")  # !!!
+        # self.show_frame(UsersFrame)  # раскомментировал
+
+
+File directory: reports_frame.py, and it contains following code: 
+
+
+File directory: users_frame.py, and it contains following code: 
+
+
+File directory: utils.py, and it contains following code: 
+# gui/utils.py
+from pathlib import Path
+from PIL import Image
+import customtkinter as ctk
+from config import ASSETS_PATH  # !!!
+import logging
+import logging.handlers
+
+
+def relative_to_assets(path: str) -> Path:
+    """
+    Преобразует относительный путь к файлу в папке assets в абсолютный.
+
+    Args:
+        path (str): Относительный путь к файлу (например, "image.png").
+
+    Returns:
+        Path: Объект Path, представляющий абсолютный путь к файлу.
+    """
+    return ASSETS_PATH / Path(path)
+
+
+def load_icon(name: str, size=(24, 24)):
+    """
+    Загружает иконку из папки assets и возвращает объект CTkImage.
+
+    Args:
+        name (str): Имя файла иконки (например, "icon.png").
+        size (tuple): Размер иконки (ширина, высота).
+
+    Returns:
+        CTkImage: Объект CTkImage для использования в customtkinter.
+    """
+    img = Image.open(relative_to_assets(name))
+    return ctk.CTkImage(img, size=size)
+
+
+def configure_logging(log_level, log_format, log_file, max_log_size, backup_count, logger_name=None,):
+    """
+     Настраивает логгер.
+     Args:
+         logger_name (str, optional):  Имя логгера.  Если None, настраивается корневой логгер.
+         log_level: Уровень логирования
+         log_format: Формат
+         log_file: Куда сохранять
+         max_log_size: Макс размер
+         backup_count: Сколько хранить старых логов
+
+     Returns:
+         logging.Logger: Настроенный объект логгера.
+     """
+
+    logger = logging.getLogger(logger_name)
+    logger.setLevel(log_level)
+
+    # Если уже есть хэндлеры, то выходим, не добавляя новые,
+    # нужно для случая, когда мы вызываем, configure_logging несколько раз из разных мест.
+    if logger.hasHandlers():
+        return logger
+    formatter = logging.Formatter(log_format)
+
+    #  Обработчик для файла (с ротацией)
+    file_handler = logging.handlers.RotatingFileHandler(
+        log_file, maxBytes=max_log_size, backupCount=backup_count,
+        encoding='utf-8'  # !!! encoding
+    )
+    file_handler.setFormatter(formatter)
+    logger.addHandler(file_handler)
+
+    #  Обработчик для консоли
+    console_handler = logging.StreamHandler()
+    console_handler.setFormatter(formatter)
+    logger.addHandler(console_handler)
+
+    return logger
+
+
+File directory: dialogs\add_employee_dialog.py, and it contains following code: 
+# gui/dialogs/add_employee_dialog.py
+import customtkinter as ctk
+from config import *  # Для констант
+import re  # Для валидации
+from tkinter import messagebox  # !!!  Для messagebox
+import datetime
+import logging
+from db.employee_repository import EmployeeRepository
+
+log = logging.getLogger(__name__)
+
+
+class AddEmployeeDialog(ctk.CTkToplevel):
+    """
+    Диалог добавления нового сотрудника.
+    """
+
+    def __init__(self, master, db):
+        """
+        Инициализирует диалог.
+
+        Args:
+            master (ctk.CTkFrame/ctk.CTk):  Родительский виджет.
+            db (Database): Объект базы данных.
+        """
+        super().__init__(master)
+        self.employee_repository = master.repository  # ссылка
+        self.gender_repository = master.gender_repository
+        self.position_repository = master.position_repository
+        self.state_repository = master.state_repository
+        self.department_repository = master.department_repository
+        self.title("Добавить сотрудника")
+        self.geometry("650x920")
+        self.resizable(False, False)
+        self.create_widgets()
+        self.grab_set()
+        self.check_fields()
+        log.debug("Инициализирован диалог AddEmployeeDialog")
+
+    def create_widgets(self):
+        """
+        Создает виджеты диалога.
+        """
+        log.debug("Создание виджетов для AddEmployeeDialog")
+        section_font = ("Arial", 20, "bold")
+
+        # --- Раздел 1:  Добавить сотрудника (заголовок) ---
+        main_section_label = ctk.CTkLabel(
+            self,
+            text="ДОБАВИТЬ СОТРУДНИКА",
+            font=("Arial", 28, "bold"),
+            text_color=BUTTON_ACTIVE_BG_COLOR,
+        )
+        main_section_label.grid(
+            row=0, column=0, columnspan=2, pady=(10, 20))
+
+        # --- Разделитель (белая линия) ---
+        separator1 = ctk.CTkFrame(self, height=2, fg_color="white")
+        separator1.grid(row=1, column=0, columnspan=2,
+                        sticky="ew", padx=10)
+
+        # --- Раздел 2: Личные данные ---
+        personal_info_label = ctk.CTkLabel(
+            self, text="Личные данные", font=section_font, text_color=FORM_LABEL_TEXT_COLOR)
+        personal_info_label.grid(
+            row=2, column=0, columnspan=2, sticky="w", padx=10, pady=(10, 5))
+
+        personal_info_frame = ctk.CTkFrame(
+            self, fg_color="transparent")
+        personal_info_frame.grid(
+            row=3, column=0, columnspan=2, sticky="ew", padx=10)
+
+        # --- Табельный номер ---
+        ctk.CTkLabel(personal_info_frame, text="Табельный номер", font=DEFAULT_FONT, text_color=FORM_LABEL_TEXT_COLOR
+                     ).grid(row=0, column=0, sticky="w",  pady=(0, 2))
+        self.personnel_number_entry = ctk.CTkEntry(
+            personal_info_frame, width=200, font=DEFAULT_FONT)
+        self.personnel_number_entry.grid(
+            row=1, column=0, sticky="w",  pady=(0, 10))
+        self.personnel_number_entry.bind(
+            "<KeyRelease>", self.check_fields)
+
+        # --- Фамилия ---
+        ctk.CTkLabel(personal_info_frame, text="Фамилия", font=DEFAULT_FONT, text_color=FORM_LABEL_TEXT_COLOR
+                     ).grid(row=2, column=0, sticky="w",  pady=(0, 2))
+        self.lastname_entry = ctk.CTkEntry(
+            personal_info_frame, width=250, font=DEFAULT_FONT)
+        self.lastname_entry.grid(row=3, column=0, sticky="w",  pady=(0, 10))
+        self.lastname_entry.bind("<KeyRelease>", self.check_fields)
+
+        # --- Имя ---
+        ctk.CTkLabel(personal_info_frame, text="Имя", font=DEFAULT_FONT,
+                     text_color=FORM_LABEL_TEXT_COLOR
+                     ).grid(row=4, column=0, sticky="w",  pady=(0, 2))
+        self.firstname_entry = ctk.CTkEntry(
+            personal_info_frame, width=250, font=DEFAULT_FONT)
+        self.firstname_entry.grid(row=5, column=0, sticky="w", pady=(0, 10))
+        self.firstname_entry.bind("<KeyRelease>", self.check_fields)
+
+        # --- Отчество ---
+        ctk.CTkLabel(personal_info_frame, text="Отчество", font=DEFAULT_FONT,
+                     text_color=FORM_LABEL_TEXT_COLOR
+                     ).grid(row=6, column=0, sticky="w",  pady=(0, 2))
+        self.middlename_entry = ctk.CTkEntry(
+            personal_info_frame, width=250, font=DEFAULT_FONT)
+        self.middlename_entry.grid(row=7, column=0, sticky="w",  pady=(0, 10))
+
+        # --- Разделитель (белая линия) ---
+        separator2 = ctk.CTkFrame(self, height=2, fg_color="white")
+        separator2.grid(row=4, column=0, columnspan=2,
+                        sticky="ew", padx=10, pady=(10, 5))
+
+        # --- Раздел 3: Дата рождения ---
+        birthdate_label = ctk.CTkLabel(
+            self, text="Дата рождения", font=section_font, text_color=FORM_LABEL_TEXT_COLOR)
+        birthdate_label.grid(
+            row=5, column=0, columnspan=2, sticky="w", padx=10, pady=(10, 5))
+
+        birthdate_frame = ctk.CTkFrame(self, fg_color="transparent")
+        birthdate_frame.grid(
+            row=6, column=0, columnspan=2, sticky="ew", padx=10)
+
+        # --- День ---
+        ctk.CTkLabel(birthdate_frame, text="День", font=DEFAULT_FONT, text_color=FORM_LABEL_TEXT_COLOR
+                     ).grid(row=0, column=0, sticky="w",  pady=(0, 2))
+        self.birth_day_combo = ctk.CTkComboBox(
+            birthdate_frame,
+            values=[str(i) for i in range(1, 32)],  # Дни (1-31)
+            width=60, font=DEFAULT_FONT,
+            state="readonly",
+            command=self.check_fields
+        )
+        self.birth_day_combo.grid(
+            row=1, column=0, sticky="w", padx=(0, 5), pady=(0, 10))
+
+        # --- Месяц ---
+        ctk.CTkLabel(birthdate_frame, text="Месяц", font=DEFAULT_FONT, text_color=FORM_LABEL_TEXT_COLOR
+                     ).grid(row=0, column=1, sticky="w",  pady=(0, 2))
+        self.birth_month_combo = ctk.CTkComboBox(
+            birthdate_frame,
+            values=[
+                "Январь", "Февраль", "Март", "Апрель", "Май", "Июнь",
+                "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь"
+            ],
+            width=100, font=DEFAULT_FONT,
+            state="readonly",
+            command=self.check_fields
+        )
+        self.birth_month_combo.grid(
+            row=1, column=1, sticky="w", padx=(0, 5), pady=(0, 10))
+
+        # --- Год ---
+        ctk.CTkLabel(birthdate_frame, text="Год", font=DEFAULT_FONT, text_color=FORM_LABEL_TEXT_COLOR
+                     ).grid(row=0, column=2, sticky="w", pady=(0, 2))
+        self.birth_year_entry = ctk.CTkEntry(
+            birthdate_frame,
+            width=80, font=DEFAULT_FONT
+        )
+        self.birth_year_entry.grid(
+            row=1, column=2, sticky="w", padx=(0, 10), pady=(0, 10))
+        self.birth_year_entry.bind("<KeyRelease>", self.check_fields)
+
+        # --- Пол ---
+        ctk.CTkLabel(birthdate_frame, text="Пол", font=DEFAULT_FONT, text_color=FORM_LABEL_TEXT_COLOR
+                     ).grid(row=2, column=0, sticky="w",  pady=(0, 2))
+        self.gender_combo = ctk.CTkComboBox(
+            birthdate_frame, values=[],
+            width=150, font=DEFAULT_FONT,
+            state="readonly",
+            command=self.check_fields
+        )
+        self.gender_combo.grid(
+            row=3, column=0, columnspan=3, sticky="w",  pady=(0, 10))
+
+        # --- Разделитель (белая линия) ---
+        separator3 = ctk.CTkFrame(self, height=2, fg_color="white")
+        separator3.grid(row=7, column=0, columnspan=2,
+                        sticky="ew", padx=10, pady=(10, 5))
+
+        # --- Раздел 4: Информация о работе ---
+        work_info_label = ctk.CTkLabel(
+            self, text="Информация о работе", font=section_font, text_color=FORM_LABEL_TEXT_COLOR)
+        work_info_label.grid(
+            row=8, column=0, columnspan=2, sticky="w", padx=10, pady=(10, 5))
+
+        work_info_frame = ctk.CTkFrame(self, fg_color="transparent")
+        work_info_frame.grid(
+            row=9, column=0, columnspan=2, sticky="ew", padx=10)
+
+        # --- Должность ---
+        ctk.CTkLabel(work_info_frame, text="Должность", font=DEFAULT_FONT,
+                     text_color=FORM_LABEL_TEXT_COLOR
+                     ).grid(row=0, column=0, sticky="w",  pady=(0, 2))
+        self.position_combo = ctk.CTkComboBox(
+            work_info_frame, values=[],
+            width=200, font=DEFAULT_FONT,
+            state="readonly",
+            command=self.update_departments
+        )
+        self.position_combo.grid(
+            row=1, column=0, sticky="w",  pady=(0, 10))
+
+        # --- Подразделение ---
+        ctk.CTkLabel(work_info_frame, text="Подразделение", font=DEFAULT_FONT,
+                     text_color=FORM_LABEL_TEXT_COLOR
+                     ).grid(row=2, column=0, sticky="w",  pady=(0, 2))
+        self.department_label = ctk.CTkLabel(
+            work_info_frame, text="", font=DEFAULT_FONT, text_color=LABEL_TEXT_COLOR, anchor="w", width=200)
+        self.department_label.grid(row=3, column=0, sticky="w", pady=(0, 10))
+
+        # --- Состояние ---
+        ctk.CTkLabel(work_info_frame, text="Состояние", font=DEFAULT_FONT,
+                     text_color=FORM_LABEL_TEXT_COLOR
+                     ).grid(row=4, column=0, sticky="w",  pady=(0, 2))
+        self.state_combo = ctk.CTkComboBox(
+            work_info_frame, values=[],
+            width=200, font=DEFAULT_FONT,
+            state="readonly",
+            command=self.check_fields
+        )
+        self.state_combo.grid(row=5, column=0, sticky="w", pady=(0, 10))
+
+        # --- Кнопки ---
+        buttons_frame = ctk.CTkFrame(
+            self, fg_color="transparent")
+        buttons_frame.grid(row=10, column=0, columnspan=2, pady=20)
+
+        self.save_button = ctk.CTkButton(
+            buttons_frame,
+            text="Сохранить",
+            font=DEFAULT_FONT,
+            command=self.save_employee,
+            fg_color="transparent",
+            text_color="white",
+            hover_color="gray",
+            border_width=1,
+            border_color="#000000",
+            width=87,
+            height=40
+
+        )
+        self.save_button.pack(side="left", padx=10)
+
+        self.reset_button = ctk.CTkButton(
+            buttons_frame,
+            text="Сбросить",
+            font=DEFAULT_FONT,
+            command=self.reset_fields,
+            fg_color="transparent",
+            text_color="white",
+            hover_color="gray",
+            border_width=1,
+            border_color="white",
+            width=87,
+            height=40
+        )
+        self.reset_button.pack(side="left", padx=10)
+
+        cancel_button = ctk.CTkButton(
+            buttons_frame,
+            text="Отмена",
+            font=DEFAULT_FONT,
+            command=self.cancel,
+            fg_color="transparent",
+            text_color="white",
+            hover_color="gray",
+            border_width=1,
+            border_color="white",
+            width=87,
+            height=40
+        )
+        cancel_button.pack(side="left", padx=10)
+
+        self.load_combobox_data()
+
+        # --- Настройка весов строк и столбцов ---
+        self.grid_columnconfigure(0, weight=1)
+        self.grid_columnconfigure(1, weight=1)
+        personal_info_frame.grid_columnconfigure(0, weight=1)
+        birthdate_frame.grid_columnconfigure(0, weight=0)
+        birthdate_frame.grid_columnconfigure(1, weight=0)
+        birthdate_frame.grid_columnconfigure(2, weight=1)
+        work_info_frame.grid_columnconfigure(0, weight=1)
+
+        log.debug("Виджеты AddEmployeeDialog созданы")
+
+    def load_combobox_data(self):
+        """
+        Загружает данные в выпадающие списки (пол, должность, состояние).
+        """
+        log.debug("Загрузка данных в комбобоксы")
+        genders = self.gender_repository.get_all()   # !!!
+        positions = self.position_repository.get_all()    # !!!
+        states = self.state_repository.get_all()     # !!!
+
+        if genders is None or positions is None or states is None:
+            messagebox.showerror(
+                "Ошибка", "Ошибка при загрузке данных для выпадающих списков!")
+            log.error("Ошибка при загрузке данных в комбобоксы")  # !!!
+            return
+
+        self.gender_combo.configure(values=[g[1] for g in genders])
+        self.position_combo.configure(values=[p[1] for p in positions])
+        self.state_combo.configure(values=[s[1] for s in states])
+
+        self.update_departments()
+
+    def update_departments(self, event=None):
+        selected_position = self.position_combo.get()
+        if not selected_position:
+            self.department_label.configure(text="")
+            log.debug(
+                "Подразделения не отображаются (должность не выбрана)")  # !!!
+            return
+
+        #  Получаем ID
+        position_id = self.position_repository.get_by_name(selected_position)
+
+        departments = self.position_repository.get_departments_for_position(
+            position_id)  # !!!
+
+        if departments is None:
+            messagebox.showerror(
+                "Ошибка", "Ошибка при получении списка подразделений!")
+            log.warning(
+                f"Не удалось получить список подразделений для должности: {selected_position}")  # !!!
+            self.department_label.configure(text="")
+            return
+        log.debug(
+            f"Выбрана должность: {selected_position}, position_id={position_id}")  # !!!
+        # !!!  Распаковываем кортежи
+        department_names = [d[0] for d in departments]
+        # !!!  Объединяем названия через запятую
+        self.department_label.configure(text=", ".join(department_names))
+        log.debug(f"Отображаемые подразделения: {department_names}")  # !!!
+        self.check_fields()
+
+    def save_employee(self):
+        """
+        Сохраняет нового сотрудника в базу данных.
+        """
+        log.info("Сохранение нового сотрудника")
+
+        personnel_number = self.personnel_number_entry.get().strip()
+        lastname = self.lastname_entry.get().strip()
+        firstname = self.firstname_entry.get().strip()
+        middlename = self.middlename_entry.get().strip()
+        birth_year = self.birth_year_entry.get().strip()
+        birth_month = self.birth_month_combo.get()
+        birth_day = self.birth_day_combo.get().strip()
+        gender = self.gender_combo.get()
+        position = self.position_combo.get()
+        department = self.department_label.cget("text")
+        state = self.state_combo.get()
+
+        # --- ВАЛИДАЦИЯ ---
+        # ... (вся валидация без изменений) ...
+        if not all([personnel_number, lastname, firstname, birth_year, birth_month, birth_day, gender, position, department, state]):
+            messagebox.showerror("Ошибка", "Заполните все обязательные поля!")
+            log.warning("Не все обязательные поля заполнены")
+            return
+
+        if not re.match(r"^\d{1,10}$", personnel_number):
+            messagebox.showerror(
+                "Ошибка", "Некорректный табельный номер! До 10 цифр.")
+            log.warning(f"Некорректный табельный номер: {personnel_number}")
+            return
+
+        if not re.match(r"^[а-яА-ЯёЁ -]+$", lastname):
+            messagebox.showerror(
+                "Ошибка", "Некорректная фамилия! Только русские буквы, пробелы и дефисы.")
+            log.warning(f"Некорректная фамилия: {lastname}")
+            return
+        if not re.match(r"^[а-яА-ЯёЁ -]+$", firstname):
+            messagebox.showerror(
+                "Ошибка", "Некорректное имя! Только русские буквы, пробелы и дефисы.")
+            log.warning(f"Некорректное имя: {firstname}")
+            return
+        if middlename != "" and not re.match(r"^[а-яА-ЯёЁ -]+$", middlename):
+            messagebox.showerror(
+                "Ошибка", "Некорректное отчество! Только русские буквы, пробелы и дефисы.")
+            log.warning(f"Некорректное отчество: {middlename}")
+            return
+        if len(lastname) > 50:
+            messagebox.showerror("Ошибка", "Слишком длинная фамилия")
+            log.warning(f"Слишком длинная фамилия: {lastname}")
+            return
+        if len(firstname) > 50:
+            messagebox.showerror("Ошибка", "Слишком длинное имя")
+            log.warning(f"Слишком длинное имя: {firstname}")
+            return
+        if len(middlename) > 50:
+            messagebox.showerror("Ошибка", "Слишком длинное отчество")
+            log.warning(f"Слишком длинное отчество: {middlename}")
+            return
+
+        try:
+            birth_year = int(birth_year)
+            if not (1900 <= birth_year <= datetime.date.today().year):
+                raise ValueError
+        except ValueError:
+            messagebox.showerror("Ошибка", "Некорректный год рождения!")
+            log.warning(f"Некорректный год рождения: {birth_year}")
+            return
+
+        try:
+            birth_day = int(birth_day)
+        except ValueError:
+            messagebox.showerror("Ошибка", "День должен быть числом")
+            log.warning(f"День рождения не число: {birth_day}")
+            return
+        month_names = ["Январь", "Февраль", "Март", "Апрель", "Май", "Июнь",
+                       "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь"]
+
+        try:
+            birth_month_index = month_names.index(birth_month) + 1
+        except ValueError:
+            messagebox.showerror("Ошибка", "Недопустимый месяц")
+            log.warning(f"Недопустимый месяц: {birth_month}")
+            return
+        try:
+            birth_date = datetime.date(
+                birth_year, birth_month_index, int(birth_day))
+            today = datetime.date.today()
+            if birth_date > today:
+                messagebox.showerror(
+                    "Ошибка", "Дата рождения не может быть в будущем!")
+                log.warning("Дата рождения в будущем")
+                return
+        # Проверка возраста (больше 18 лет)
+            age = today.year - birth_date.year - ((today.month, today.day) < (
+                birth_date.month, birth_date.day))
+            if age < 18:
+                messagebox.showerror(
+                    "Ошибка", "Сотрудник должен быть совершеннолетним!")
+                log.warning("Сотрудник младше 18 лет")
+                return
+
+        except ValueError:
+            messagebox.showerror("Ошибка", "Некорректная дата рождения!")
+            log.warning(
+                f"Некорректная дата рождения: {birth_year}-{birth_month_index}-{birth_day}")
+            return
+        # Дата рождения (строка)
+        birth_date_str = f"{birth_year}-{birth_month_index:02}-{birth_day:02}"
+
+        if self.employee_repository.db.fetch_one("SELECT 1 FROM Employees WHERE PersonnelNumber = ?", (personnel_number,)):
+            messagebox.showerror(
+                "Ошибка", "Сотрудник с таким табельным номером уже существует!")
+            log.warning(f"Табельный номер уже существует: {personnel_number}")
+            return
+
+        # --- Получаем ID ---  (ИСПОЛЬЗУЕМ МЕТОДЫ Database!)
+        gender_id = self.gender_repository.get_by_name(gender)          # !!!
+        position_id = self.position_repository.get_by_name(position)      # !!!
+        dep_ids = self.department_repository.get_by_name(department)    # !!!
+        department_id = [item[0] for item in dep_ids][0]
+        state_id = self.state_repository.get_by_name(state)
+
+        log.debug(
+            f"Полученные ID: gender_id={gender_id}, position_id={position_id}, department_id={department_id}, state_id={state_id}")
+
+        if gender_id is None or position_id is None or department_id is None or state_id is None:
+            messagebox.showerror("Ошибка", "Не найдена запись в справочнике!")
+            log.error("Не найдены ID в справочниках")
+            return
+
+        # --- Добавляем сотрудника ---
+        success = self.employee_repository.insert_employee(  # !!!!!!
+            personnel_number, lastname, firstname, middlename, birth_date_str,
+            gender_id, position_id, department_id, state_id
+        )
+        if success:
+            messagebox.showinfo("Успех", "Сотрудник успешно добавлен!")
+            log.info(f"Сотрудник успешно добавлен: {personnel_number}")
+            self.destroy()
+            if self.master and hasattr(self.master, "display_data"):
+                self.master.display_data()
+        else:
+            messagebox.showerror("Ошибка", "Ошибка при добавлении сотрудника!")
+            log.error(f"Ошибка при добавлении сотрудника: {personnel_number}")
+
+    def reset_fields(self):
+        """
+        Сбрасывает все поля диалога в исходное состояние.
+        """
+        log.debug("Сброс полей диалога")  # !!!
+        # Очищаем текстовые поля
+        self.personnel_number_entry.delete(0, "end")
+        self.lastname_entry.delete(0, "end")
+        self.firstname_entry.delete(0, "end")
+        self.middlename_entry.delete(0, "end")
+        self.birth_year_entry.delete(0, "end")
+
+        # Устанавливаем combobox'ы в начальное состояние
+        self.gender_combo.set("")
+        self.position_combo.set("")
+        self.department_label.configure(text="")
+        self.state_combo.set("")
+        self.birth_day_combo.set("")
+        self.birth_month_combo.set("")
+
+        self.check_fields()
+
+    def check_fields(self, event=None):
+        """
+        Проверяет, заполнены ли все обязательные поля, и управляет состоянием кнопки "Сохранить".
+        """
+        current_state = self.save_button.cget("state")
+
+        all_filled = (
+            self.personnel_number_entry.get()
+            and self.lastname_entry.get()
+            and self.firstname_entry.get()
+            and self.birth_year_entry.get()
+            and self.birth_month_combo.get()
+            and self.birth_day_combo.get()
+            and self.gender_combo.get()
+            and self.position_combo.get()
+            and self.department_label.cget("text")
+            and self.state_combo.get()
+        )
+        log.debug(
+            f"Проверка заполненности полей. Результат: {all_filled}")  # !!!
+
+        if all_filled and current_state == "disabled":
+            self.save_button.configure(
+                state="normal", fg_color="#0057FC", text_color="white")
+        elif not all_filled and current_state == "normal":
+            self.save_button.configure(
+                state="disabled", fg_color="transparent", text_color="white")
+
+    def cancel(self):
+        """
+        Закрывает диалог без сохранения.
+        """
+        log.debug("Закрытие диалога AddEmployeeDialog без сохранения")
+        self.destroy()
+
+
+File directory: dialogs\edit_employee_dialog.py, and it contains following code: 
+# gui/dialogs/edit_employee_dialog.py
+import customtkinter as ctk
+from config import *
+import re
+import datetime
+from tkinter import messagebox
+import logging
+from db.employee_repository import EmployeeRepository
+
+log = logging.getLogger(__name__)
+
+
+class EditEmployeeDialog(ctk.CTkToplevel):
+    """
+    Диалог редактирования сотрудника.
+    """
+
+    def __init__(self, master, db, employee_data):
+        """
+        Инициализирует диалог.
+
+        Args:
+            master (ctk.CTk/ctk.CTkFrame): Родительский виджет.
+            db (Database): Объект базы данных.
+            employee_data (tuple): Данные о сотруднике (результат fetch_one).
+        """
+        super().__init__(master)
+        self.employee_data = employee_data  # Сохраняем данные
+        self.employee_repository = master.repository  # !!!
+        self.gender_repository = master.gender_repository  # !!!
+        self.position_repository = master.position_repository  # !!!
+        self.state_repository = master.state_repository  # !!!
+        self.department_repository = master.department_repository  # !!!
+        self.employee_data = employee_data
+        self.title("Редактировать сотрудника")
+        self.geometry("650x920")
+        self.resizable(False, False)
+        self.create_widgets()
+        self.grab_set()  # Модальный диалог
+        self.check_fields()
+        log.debug("Инициализирован диалог EditEmployeeDialog")
+
+    def create_widgets(self):
+        """
+        Создает виджеты диалога.
+        """
+        log.debug("Создание виджетов для EditEmployeeDialog")
+        section_font = ("Arial", 20, "bold")
+
+        # --- Заголовок ---
+        main_section_label = ctk.CTkLabel(
+            self,
+            text="РЕДАКТИРОВАТЬ СОТРУДНИКА",
+            font=("Arial", 28, "bold"),
+            text_color=FORM_LABEL_TEXT_COLOR,
+        )
+        main_section_label.grid(
+            row=0, column=0, columnspan=2, pady=(10, 20))
+
+        # --- Разделитель ---
+        separator1 = ctk.CTkFrame(self, height=2, fg_color="white")
+        separator1.grid(row=1, column=0, columnspan=2,
+                        sticky="ew", padx=10)
+
+        # --- Личные данные ---
+        personal_info_label = ctk.CTkLabel(
+            self, text="Личные данные", font=section_font, text_color=FORM_LABEL_TEXT_COLOR)
+        personal_info_label.grid(
+            row=2, column=0, columnspan=2, sticky="w", padx=10, pady=(10, 5))
+
+        personal_info_frame = ctk.CTkFrame(
+            self, fg_color="transparent")
+        personal_info_frame.grid(
+            row=3, column=0, columnspan=2, sticky="ew", padx=10)
+
+        # --- Табельный номер (нередактируемый) ---
+        ctk.CTkLabel(personal_info_frame, text="Табельный номер", font=DEFAULT_FONT, text_color=FORM_LABEL_TEXT_COLOR
+                     ).grid(row=0, column=0, sticky="w",  pady=(0, 2))
+        self.personnel_number_entry = ctk.CTkEntry(
+            personal_info_frame, width=200, font=DEFAULT_FONT, state="disabled")  # disabled
+        self.personnel_number_entry.grid(
+            row=1, column=0, sticky="w",  pady=(0, 10))
+
+        # --- Фамилия ---
+        ctk.CTkLabel(personal_info_frame, text="Фамилия", font=DEFAULT_FONT, text_color=FORM_LABEL_TEXT_COLOR
+                     ).grid(row=2, column=0, sticky="w",  pady=(0, 2))
+        self.lastname_entry = ctk.CTkEntry(
+            personal_info_frame, width=250, font=DEFAULT_FONT)
+        self.lastname_entry.grid(row=3, column=0, sticky="w",  pady=(0, 10))
+        self.lastname_entry.bind("<KeyRelease>", self.check_fields)
+
+        # --- Имя ---
+        ctk.CTkLabel(personal_info_frame, text="Имя", font=DEFAULT_FONT,
+                     text_color=FORM_LABEL_TEXT_COLOR
+                     ).grid(row=4, column=0, sticky="w",  pady=(0, 2))
+        self.firstname_entry = ctk.CTkEntry(
+            personal_info_frame, width=250, font=DEFAULT_FONT)
+        self.firstname_entry.grid(row=5, column=0, sticky="w", pady=(0, 10))
+        self.firstname_entry.bind("<KeyRelease>", self.check_fields)
+
+        # --- Отчество ---
+        ctk.CTkLabel(personal_info_frame, text="Отчество", font=DEFAULT_FONT,
+                     text_color=FORM_LABEL_TEXT_COLOR
+                     ).grid(row=6, column=0, sticky="w",  pady=(0, 2))
+        self.middlename_entry = ctk.CTkEntry(
+            personal_info_frame, width=250, font=DEFAULT_FONT)
+        self.middlename_entry.grid(row=7, column=0, sticky="w",  pady=(0, 10))
+
+        # --- Разделитель ---
+        separator2 = ctk.CTkFrame(self, height=2, fg_color="white")
+        separator2.grid(row=4, column=0, columnspan=2,
+                        sticky="ew", padx=10, pady=(10, 5))
+
+        # --- Дата рождения ---
+        birthdate_label = ctk.CTkLabel(
+            self, text="Дата рождения", font=section_font, text_color=FORM_LABEL_TEXT_COLOR)
+        birthdate_label.grid(
+            row=5, column=0, columnspan=2, sticky="w", padx=10, pady=(10, 5))
+
+        birthdate_frame = ctk.CTkFrame(self, fg_color="transparent")
+        birthdate_frame.grid(
+            row=6, column=0, columnspan=2, sticky="ew", padx=10)
+
+        # --- День ---
+        ctk.CTkLabel(birthdate_frame, text="День", font=DEFAULT_FONT, text_color=FORM_LABEL_TEXT_COLOR
+                     ).grid(row=0, column=0, sticky="w",  pady=(0, 2))
+        self.birth_day_combo = ctk.CTkComboBox(
+            birthdate_frame,
+            values=[str(i) for i in range(1, 32)],
+            width=60, font=DEFAULT_FONT,
+            state="readonly",
+            command=self.check_fields
+        )
+        self.birth_day_combo.grid(
+            row=1, column=0, sticky="w", padx=(0, 5), pady=(0, 10))
+
+        # --- Месяц ---
+        ctk.CTkLabel(birthdate_frame, text="Месяц", font=DEFAULT_FONT, text_color=FORM_LABEL_TEXT_COLOR
+                     ).grid(row=0, column=1, sticky="w",  pady=(0, 2))
+        self.birth_month_combo = ctk.CTkComboBox(
+            birthdate_frame,
+            values=[
+                "Январь", "Февраль", "Март", "Апрель", "Май", "Июнь",
+                "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь"
+            ],
+            width=100, font=DEFAULT_FONT,
+            state="readonly",
+            command=self.check_fields
+        )
+        self.birth_month_combo.grid(
+            row=1, column=1, sticky="w", padx=(0, 5), pady=(0, 10))
+
+        # --- Год ---
+        ctk.CTkLabel(birthdate_frame, text="Год", font=DEFAULT_FONT, text_color=FORM_LABEL_TEXT_COLOR
+                     ).grid(row=0, column=2, sticky="w", pady=(0, 2))
+        self.birth_year_entry = ctk.CTkEntry(
+            birthdate_frame,
+            width=80, font=DEFAULT_FONT
+        )
+        self.birth_year_entry.grid(
+            row=1, column=2, sticky="w", padx=(0, 10), pady=(0, 10))
+        self.birth_year_entry.bind("<KeyRelease>", self.check_fields)
+
+        # --- Пол ---
+        ctk.CTkLabel(birthdate_frame, text="Пол", font=DEFAULT_FONT, text_color=FORM_LABEL_TEXT_COLOR
+                     ).grid(row=2, column=0, sticky="w",  pady=(0, 2))
+        self.gender_combo = ctk.CTkComboBox(
+            birthdate_frame, values=[],
+            width=150, font=DEFAULT_FONT,
+            state="readonly",
+            command=self.check_fields
+        )
+        self.gender_combo.grid(
+            row=3, column=0, columnspan=3, sticky="w",  pady=(0, 10))
+
+        # --- Разделитель ---
+        separator3 = ctk.CTkFrame(self, height=2, fg_color="white")
+        separator3.grid(row=7, column=0, columnspan=2,
+                        sticky="ew", padx=10, pady=(10, 5))
+
+        # --- Информация о работе ---
+        work_info_label = ctk.CTkLabel(
+            self, text="Информация о работе", font=section_font, text_color=FORM_LABEL_TEXT_COLOR)
+        work_info_label.grid(
+            row=8, column=0, columnspan=2, sticky="w", padx=10, pady=(10, 5))
+
+        work_info_frame = ctk.CTkFrame(self, fg_color="transparent")
+        work_info_frame.grid(
+            row=9, column=0, columnspan=2, sticky="ew", padx=10)
+
+        # --- Должность ---
+        ctk.CTkLabel(work_info_frame, text="Должность", font=DEFAULT_FONT,
+                     text_color=FORM_LABEL_TEXT_COLOR
+                     ).grid(row=0, column=0, sticky="w",  pady=(0, 2))
+        self.position_combo = ctk.CTkComboBox(
+            work_info_frame, values=[],
+            width=200, font=DEFAULT_FONT,
+            state="readonly",
+            command=self.update_departments
+        )
+        self.position_combo.grid(
+            row=1, column=0, sticky="w",  pady=(0, 10))
+
+        # --- Подразделение ---
+        ctk.CTkLabel(work_info_frame, text="Подразделение", font=DEFAULT_FONT,
+                     text_color=FORM_LABEL_TEXT_COLOR
+                     ).grid(row=2, column=0, sticky="w",  pady=(0, 2))
+        self.department_label = ctk.CTkLabel(
+            work_info_frame, text="", font=DEFAULT_FONT, text_color=LABEL_TEXT_COLOR, anchor="w", width=200)
+        self.department_label.grid(row=3, column=0, sticky="w", pady=(0, 10))
+
+        # --- Состояние ---
+        ctk.CTkLabel(work_info_frame, text="Состояние", font=DEFAULT_FONT,
+                     text_color=FORM_LABEL_TEXT_COLOR
+                     ).grid(row=4, column=0, sticky="w",  pady=(0, 2))
+        self.state_combo = ctk.CTkComboBox(
+            work_info_frame, values=[],
+            width=200, font=DEFAULT_FONT,
+            state="readonly",
+            command=self.check_fields
+        )
+        self.state_combo.grid(row=5, column=0, sticky="w", pady=(0, 10))
+
+        # --- Кнопки ---
+        buttons_frame = ctk.CTkFrame(
+            self, fg_color="transparent")
+        buttons_frame.grid(row=10, column=0, columnspan=2, pady=20)
+
+        self.update_button = ctk.CTkButton(
+            buttons_frame,
+            text="Сохранить",
+            font=DEFAULT_FONT,
+            command=self.update_employee,
+            fg_color="#0057FC",
+            text_color="white",
+            hover_color="gray",
+            border_width=1,
+            border_color="#000000",
+            width=87,
+            height=40
+
+        )
+        self.update_button.pack(side="left", padx=10)
+
+        self.reset_button = ctk.CTkButton(
+            buttons_frame,
+            text="Сбросить",
+            font=DEFAULT_FONT,
+            command=self.restore_fields,
+            fg_color="transparent",
+            text_color="white",
+            hover_color="gray",
+            border_width=1,
+            border_color="white",
+            width=87,
+            height=40
+        )
+        self.reset_button.pack(side="left", padx=10)
+
+        cancel_button = ctk.CTkButton(
+            buttons_frame,
+            text="Отмена",
+            font=DEFAULT_FONT,
+            command=self.cancel,
+            fg_color="transparent",
+            text_color="white",
+            hover_color="gray",
+            border_width=1,
+            border_color="white",
+            width=87,
+            height=40
+        )
+        cancel_button.pack(side="left", padx=10)
+
+        self.load_combobox_data()
+
+        # --- Настройка весов строк и столбцов ---
+        self.grid_columnconfigure(0, weight=1)
+        self.grid_columnconfigure(1, weight=1)
+        personal_info_frame.grid_columnconfigure(0, weight=1)
+        birthdate_frame.grid_columnconfigure(0, weight=0)
+        birthdate_frame.grid_columnconfigure(1, weight=0)
+        birthdate_frame.grid_columnconfigure(2, weight=1)
+        work_info_frame.grid_columnconfigure(0, weight=1)
+
+        # Заполняем поля данными о сотруднике
+        self.fill_fields()
+        log.debug("Виджеты EditEmployeeDialog созданы")
+
+    def load_combobox_data(self):
+        """Загружает данные в выпадающие списки."""
+        log.debug("Загрузка данных в комбобоксы (EditEmployeeDialog)")
+
+        # !!! Используем соответствующие репозитории
+        genders = self.gender_repository.get_all()
+        positions = self.position_repository.get_all()
+        states = self.state_repository.get_all()
+
+        if genders is None or positions is None or states is None:
+            messagebox.showerror(
+                "Ошибка", "Ошибка при загрузке данных для выпадающих списков!")
+            log.error("Ошибка при загрузке данных в комбобоксы")
+            return
+
+        self.gender_combo.configure(values=[g[1] for g in genders])
+        self.position_combo.configure(values=[p[1] for p in positions])
+        self.state_combo.configure(values=[s[1] for s in states])
+
+        self.update_departments()
+
+    def update_departments(self, event=None):
+        """
+        Обновляет список доступных подразделений в зависимости от выбранной должности.
+        """
+        selected_position = self.position_combo.get()
+        if not selected_position:
+            self.department_label.configure(text="")
+            log.debug("Подразделения не отображаются (должность не выбрана)")
+            return
+
+        #  Получаем ID
+        position_id = self.position_repository.get_by_name(
+            selected_position)  # !!!
+        departments = self.position_repository.get_departments_for_position(
+            position_id)  # !!!
+
+        if departments is None:
+            messagebox.showerror(
+                "Ошибка", "Ошибка при получении списка подразделений!")
+            log.warning(
+                f"Не удалось получить список подразделений для должности: {selected_position}")
+            self.department_label.configure(text="")
+            return
+
+        log.debug(
+            f"Выбрана должность: {selected_position}, position_id={position_id}")
+        department_names = [d[0] for d in departments]
+        self.department_label.configure(text=", ".join(department_names))
+        log.debug(f"Отображаемые подразделения: {department_names}")
+        self.check_fields()
+
+    def update_employee(self):
+        """
+        Обновляет данные сотрудника в базе данных.
+        """
+        log.info("Обновление данных сотрудника")
+
+        personnel_number = self.personnel_number_entry.get().strip()
+        lastname = self.lastname_entry.get().strip()
+        firstname = self.firstname_entry.get().strip()
+        middlename = self.middlename_entry.get().strip()
+        birth_year = self.birth_year_entry.get().strip()
+        birth_month = self.birth_month_combo.get()
+        birth_day = self.birth_day_combo.get().strip()
+        gender = self.gender_combo.get()
+        position = self.position_combo.get()
+        department = self.department_label.cget("text")
+        state = self.state_combo.get()
+
+        if not all([personnel_number, lastname, firstname, birth_year, birth_month, birth_day, gender, position, department, state]):
+            messagebox.showerror("Ошибка", "Заполните все обязательные поля!")
+            log.warning("Не все поля заполнены")
+            return
+
+        if not re.match(r"^[а-яА-ЯёЁ -]+$", lastname):
+            messagebox.showerror(
+                "Ошибка", "Некорректная фамилия! Только русские буквы, пробелы и дефисы.")
+            log.warning(f"Некорректное имя: {firstname}")
+            return
+        if not re.match(r"^[а-яА-ЯёЁ -]+$", firstname):
+            messagebox.showerror(
+                "Ошибка", "Некорректное имя! Только русские буквы, пробелы и дефисы.")
+            log.warning(f"Некорректное имя: {firstname}")
+            return
+
+        if middlename != "" and not re.match(r"^[а-яА-ЯёЁ -]+$", middlename):
+            messagebox.showerror(
+                "Ошибка", "Некорректное отчество! Только русские буквы, пробелы и дефисы.")
+            log.warning(f"Некорректное отчество: {middlename}")
+            return
+        if len(lastname) > 50:
+            messagebox.showerror("Ошибка", "Слишком длинная фамилия")
+            log.warning(f"Слишком длинная фамилия: {lastname}")
+            return
+        if len(firstname) > 50:
+            messagebox.showerror("Ошибка", "Слишком длинное имя")
+            log.warning(f"Слишком длинное имя: {firstname}")
+            return
+        if len(middlename) > 50:
+            messagebox.showerror("Ошибка", "Слишком длинное отчество")
+            log.warning(f"Слишком длинное отчество: {middlename}")
+            return
+
+        try:
+            birth_year = int(birth_year)
+            if not (1900 <= birth_year <= datetime.date.today().year):
+                raise ValueError
+        except ValueError:
+            messagebox.showerror("Ошибка", "Некорректный год рождения!")
+            log.warning(f"Некорректный год рождения: {birth_year}")
+            return
+        try:
+            birth_day = int(birth_day)
+        except ValueError:
+            messagebox.showerror("Ошибка", "День должен быть числом")
+            log.warning(f"День рождения не число: {birth_day}")
+            return
+
+        month_names = ["Январь", "Февраль", "Март", "Апрель", "Май", "Июнь",
+                       "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь"]
+        try:
+            birth_month_index = month_names.index(birth_month) + 1
+        except ValueError:
+            messagebox.showerror("Ошибка", "Недопустимый месяц")
+            log.warning(f"Недопустимый месяц: {birth_month}")
+            return
+
+        try:
+            birth_date = datetime.date(
+                birth_year, birth_month_index, int(birth_day))
+            today = datetime.date.today()
+            if birth_date > today:
+                messagebox.showerror(
+                    "Ошибка", "Дата рождения не может быть в будущем!")
+                log.warning("Дата рождения в будущем")
+                return
+            age = today.year - birth_date.year - \
+                ((today.month, today.day) < (birth_date.month, birth_date.day))
+            if age < 18:
+                messagebox.showerror(
+                    "Ошибка", "Сотрудник должен быть совершеннолетним!")
+                log.warning("Сотрудник младше 18 лет")
+                return
+        except ValueError:
+            messagebox.showerror("Ошибка", "Некорректная дата рождения!")
+            log.warning(
+                f"Некорректная дата рождения: {birth_year}-{birth_month_index}-{birth_day}")
+            return
+
+        birth_date_str = f"{birth_year}-{birth_month_index:02}-{birth_day:02}"
+
+        gender_id = self.gender_repository.get_by_name(gender)
+        position_id = self.position_repository.get_by_name(position)
+
+        dep_ids = self.department_repository.get_by_name(
+            department)  # !!! получаем department ID
+        department_id = [item[0] for item in dep_ids][0]
+
+        state_id = self.state_repository.get_by_name(state)
+        log.debug(
+            f"Полученные ID: gender_id={gender_id}, position_id={position_id}, department_id={department_id}, state_id={state_id}")
+
+        if gender_id is None or position_id is None or department_id is None or state_id is None:
+            messagebox.showerror("Ошибка", "Не найдена запись в справочнике!")
+            log.error("Не найдены ID в справочниках")
+            return
+        success = self.employee_repository.update_employee(  # !!!
+            personnel_number, lastname, firstname, middlename, birth_date_str,
+            gender_id, position_id, department_id, state_id
+        )
+        if success:
+            messagebox.showinfo("Успех", "Данные сотрудника обновлены!")
+            log.info(f"Данные сотрудника {personnel_number} обновлены")
+            self.destroy()
+            if self.master and hasattr(self.master, "display_data"):
+                self.master.display_data()
+        else:
+            messagebox.showerror(
+                "Ошибка", "Ошибка при обновлении данных сотрудника!")
+            log.error(
+                f"Ошибка при обновлении данных сотрудника {personnel_number}")
+
+    def restore_fields(self):
+        """
+        Восстанавливает исходные значения полей диалога (до редактирования).
+        """
+        log.debug("Восстановление исходных значений полей")
+        self.personnel_number_entry.configure(state="normal")
+        self.personnel_number_entry.delete(0, "end")
+        self.personnel_number_entry.insert(
+            0, self.employee_data[0])  # Табельный номер
+        self.personnel_number_entry.configure(state="disabled")
+
+        self.lastname_entry.delete(0, "end")
+        self.lastname_entry.insert(0, self.employee_data[1])  # Фамилия
+
+        self.firstname_entry.delete(0, "end")
+        self.firstname_entry.insert(0, self.employee_data[2])  # Имя
+
+        self.middlename_entry.delete(0, "end")
+        self.middlename_entry.insert(0, self.employee_data[3])  # Отчество
+
+        # Дата рождения
+        year, month, day = self.employee_data[4].split("-")
+        self.birth_year_entry.delete(0, "end")
+        self.birth_year_entry.insert(0, year)
+
+        # !!! ИСПОЛЬЗУЕМ СЛОВАРЬ !!!
+        month_map = {
+            "January": "Январь",
+            "February": "Февраль",
+            "March": "Март",
+            "April": "Апрель",
+            "May": "Май",
+            "June": "Июнь",
+            "July": "Июль",
+            "August": "Август",
+            "September": "Сентябрь",
+            "October": "Октябрь",
+            "November": "Ноябрь",
+            "December": "Декабрь"
+        }
+        month_name_en = datetime.date(
+            int(year), int(month), int(day)).strftime("%B")
+        self.birth_month_combo.set(
+            month_map[month_name_en])  # Используем словарь!
+        self.birth_day_combo.set(day)
+
+        self.gender_combo.set(self.employee_data[5])   # Пол
+        self.position_combo.set(self.employee_data[6])  # Должность
+        self.department_label.configure(text=self.employee_data[7])
+        self.state_combo.set(self.employee_data[8])      # Состояние
+
+        self.check_fields()
+
+    def fill_fields(self):
+        """
+        Заполняет поля диалога данными о сотруднике при открытии.
+        """
+        log.debug("Заполнение полей данными сотрудника")
+        self.personnel_number_entry.configure(state="normal")
+        self.personnel_number_entry.insert(0, self.employee_data[0])
+        self.personnel_number_entry.configure(state="disabled")
+        self.lastname_entry.insert(0, self.employee_data[1])
+        self.firstname_entry.insert(0, self.employee_data[2])
+        self.middlename_entry.insert(0, self.employee_data[3])
+
+        year, month, day = self.employee_data[4].split("-")
+        self.birth_year_entry.insert(0, year)
+
+        # --- ИСПОЛЬЗУЕМ СЛОВАРЬ ДЛЯ МЕСЯЦЕВ ---
+        month_map = {  # Словарь для перевода английских названий месяцев в русские
+            "January": "Январь",
+            "February": "Февраль",
+            "March": "Март",
+            "April": "Апрель",
+            "May": "Май",
+            "June": "Июнь",
+            "July": "Июль",
+            "August": "Август",
+            "September": "Сентябрь",
+            "October": "Октябрь",
+            "November": "Ноябрь",
+            "December": "Декабрь"
+        }
+        month_name_en = datetime.date(int(year), int(month), int(day)).strftime(
+            "%B")  # Получаем название месяца на английском
+        # Устанавливаем русское название
+        self.birth_month_combo.set(month_map[month_name_en])
+        # ---------------------------------------
+
+        self.birth_day_combo.set(day)
+
+        self.gender_combo.set(self.employee_data[5])
+        self.position_combo.set(self.employee_data[6])
+        self.department_label.configure(text=self.employee_data[7])
+        self.state_combo.set(self.employee_data[8])
+        self.check_fields()
+
+    def check_fields(self, event=None):
+        """
+        Проверяет, заполнены ли все обязательные поля, и управляет состоянием кнопки "Сохранить".
+        """
+        current_state = self.update_button.cget("state")
+
+        all_filled = (
+            self.personnel_number_entry.get()
+            and self.lastname_entry.get()
+            and self.firstname_entry.get()
+            and self.birth_year_entry.get()
+            and self.birth_month_combo.get()
+            and self.birth_day_combo.get()
+            and self.gender_combo.get()
+            and self.position_combo.get()
+            and self.department_label.cget("text")
+            and self.state_combo.get()
+        )
+        log.debug(
+            f"Проверка заполненности полей. Результат: {all_filled}")
+
+        if all_filled and current_state == "disabled":
+            self.update_button.configure(
+                state="normal", fg_color="#0057FC", text_color="white")
+        elif not all_filled and current_state == "normal":
+            self.update_button.configure(
+                state="disabled",  fg_color="transparent", text_color=BUTTON_DISABLED_TEXT_COLOR)
+
+    def cancel(self):
+        """
+        Закрывает диалог без сохранения изменений.
+        """
+        log.debug("Закрытие диалога EditEmployeeDialog без сохранения")
+        self.destroy()
+
+
+File directory: dialogs\import_dialog.py, and it contains following code: 
+# gui/dialogs/import_dialog.py
+
+import customtkinter as ctk
+import tkinter as tk
+from tkinterdnd2 import DND_FILES, TkinterDnD  # Импортируем TkinterDnD
+from tkinter import messagebox
+import logging
+import csv
+import xml.etree.ElementTree as ET
+from config import *
+import re
+import datetime
+
+log = logging.getLogger(__name__)
+
+
+class ImportDialog(ctk.CTkToplevel):
+    def __init__(self, master, employee_repository, gender_repository,
+                 position_repository, state_repository, department_repository):
+        super().__init__(master)
+
+        # !!! Сохраняем ВСЕ репозитории
+        self.employee_repository = employee_repository
+        self.gender_repository = gender_repository
+        self.position_repository = position_repository
+        self.state_repository = state_repository
+        self.department_repository = department_repository
+
+        self.title("Импорт данных")
+        self.geometry("500x400")  # Размер окна
+        self.resizable(False, False)  # Фиксированный размер
+
+        # --- Устанавливаем черный фон для окна ---
+        self.configure(bg="#000000")  # Черный фон для Toplevel
+
+        # !!! Оборачиваем *ВЕСЬ* контент диалога в TkinterDnD.Tk() !!!
+        TkinterDnD._require(self)
+
+        self.create_widgets()
+        self.grab_set()  # !!!
+
+    def create_widgets(self):
+
+        # --- Область для Drag & Drop ---
+        self.drop_frame = ctk.CTkFrame(
+            self,
+            fg_color="transparent",  # Прозрачный фон
+            border_width=2,  # Ширина рамки
+            border_color="#f233f5"  # Цвет рамки (outline)
+        )
+        self.drop_frame.pack(fill="both", expand=True, padx=20, pady=20)
+
+        self.drop_label = ctk.CTkLabel(
+            self.drop_frame,
+            text="Перетащите файлы сюда (CSV или XML)",
+            font=("Arial", 16),
+            fg_color="transparent",
+            text_color="white",  # Белый текст
+        )
+        self.drop_label.pack(expand=True)
+
+        # !!! Привязываем события Drag & Drop
+        self.drop_frame.drop_target_register(DND_FILES)
+        self.drop_frame.dnd_bind("<<Drop>>", self.handle_drop)
+
+        # --- Кнопка "Отмена" ---
+        self.cancel_button = ctk.CTkButton(
+            self,  # Родителем является self
+            text="Отмена",
+            command=self.destroy,  # !!!
+            width=100,
+            fg_color="#f233f5",  # Цвет как у outline
+            hover_color="#DA70D6",  # Более светлый при наведении
+            text_color="white",      # Белый
+            border_width=0
+        )
+        self.cancel_button.pack(pady=(0, 20))  # Отступ снизу
+
+    def handle_drop(self, event):
+        """Обрабатывает событие Drop (перетаскивание файлов)."""
+        file_paths = self.parse_drop_files(event.data)
+        log.info(f"Перетащены файлы: {file_paths}")
+
+        for path in file_paths:
+            if path.lower().endswith(".csv"):
+                self.process_csv(path)
+            elif path.lower().endswith(".xml"):
+                self.process_xml(path)
+            else:
+                messagebox.showwarning(
+                    "Предупреждение", f"Неподдерживаемый формат файла: {path}")
+                log.warning(
+                    f"Неподдерживаемый формат файла при импорте: {path}")
+
+    def parse_drop_files(self, data_string):
+        """Разбирает строку, полученную от TkinterDnD."""
+        paths = []
+        current_path = ""
+        in_braces = False
+        for char in data_string:
+            if char == '{':
+                in_braces = True
+            elif char == '}':
+                in_braces = False
+                paths.append(current_path.strip())
+                current_path = ""
+            elif char == " " and not in_braces:
+                if current_path:
+                    paths.append(current_path.strip())
+                current_path = ""
+            else:
+                current_path += char
+        if current_path.strip():  # !!!
+            paths.append(current_path.strip())   # !!!
+        return paths
+
+    def process_csv(self, file_path):
+        """Обрабатывает CSV-файл."""
+        log.info(f"Обработка CSV файла: {file_path}")
+        added_count = 0   # Счетчик добавленных
+        skipped_count = 0  # счетчик пропущенных
+        try:
+            with open(file_path, 'r', encoding='utf-8-sig') as file:  # !!!
+                reader = csv.DictReader(file)  # !!!
+                for row in reader:          #
+                    #  Если валидация и вставка прошли успешно, увеличиваем счетчик добавленных.
+                    if self.validate_and_insert_row(row):
+                        added_count += 1
+                    else:
+                        skipped_count += 1
+
+        except Exception as e:
+            messagebox.showerror("Ошибка импорта CSV",
+                                 f"Ошибка при обработке CSV: {e}")  # !!!
+            log.exception(f"Ошибка импорта из CSV {file_path}: {e}")
+            return   # !!!
+
+        #  Сообщение
+        messagebox.showinfo("Импорт CSV",
+                            f"Импорт завершен.\nДобавлено записей: {added_count}\nПропущено записей: {skipped_count}")
+
+        if self.master and hasattr(self.master, "load_data") and hasattr(self.master, "display_data"):
+            self.master.load_data()
+            self.master.display_data()
+
+    def process_xml(self, file_path):
+        """Обрабатывает XML-файл."""
+        log.info(f"Обработка XML файла: {file_path}")
+        added_count = 0   # !!!
+        skipped_count = 0  # !!!
+        try:
+            tree = ET.parse(file_path)  # !!!
+            root = tree.getroot()      #
+
+            for employee in root.findall('Employee'):  # !!!
+                # !!!  Создаем словарь
+                row = {
+                    'PersonnelNumber': employee.findtext('PersonnelNumber'),
+                    'LastName': employee.findtext('LastName'),
+                    'FirstName': employee.findtext('FirstName'),
+                    'MiddleName': employee.findtext('MiddleName'),  # !!!
+                    'BirthDate': employee.findtext('BirthDate'),  #
+                    'GenderName': employee.findtext('GenderName'),
+                    'PositionName': employee.findtext('PositionName'),
+                    'DepartmentName': employee.findtext('DepartmentName'),
+                    'StateName': employee.findtext('StateName')
+                }
+                if self.validate_and_insert_row(row):  #
+                    added_count += 1  #
+                else:
+                    skipped_count += 1  #
+
+        except Exception as e:
+            messagebox.showerror("Ошибка импорта XML",
+                                 f"Ошибка при обработке XML: {e}")  # !!!
+            log.exception(f"Ошибка импорта из XML {file_path}: {e}")  # !!!
+            return
+
+        messagebox.showinfo("Импорт XML",  # !!!
+                            f"Импорт завершен.\nДобавлено записей: {added_count}\nПропущено записей: {skipped_count}")
+        if self.master and hasattr(self.master, "load_data") and hasattr(self.master, "display_data"):
+            self.master.load_data()
+            self.master.display_data()
+
+    def validate_and_insert_row(self, row):
+        """
+        Валидирует данные строки и вставляет их в базу данных.
+        Возвращает True если успешно, False если ошибка.
+        """
+        personnel_number = row.get('PersonnelNumber', '').strip()
+        lastname = row.get('LastName', '').strip()
+        firstname = row.get('FirstName', '').strip()
+        middlename = row.get('MiddleName', '').strip()  # Может быть пустым
+        birth_date_str = row.get('BirthDate', '').strip()
+        gender_name = row.get('GenderName', '').strip()
+        position_name = row.get('PositionName', '').strip()
+        department_name = row.get('DepartmentName', '').strip()
+        state_name = row.get('StateName', '').strip()
+
+        if not all([personnel_number, lastname, firstname, birth_date_str, gender_name, position_name, department_name, state_name]):
+            # messagebox.showerror("Ошибка импорта", "Не все обязательные поля заполнены в строке: " + str(row)) # убрал
+            log.error(f"Ошибка импорта: Не все поля заполнены. Строка: {row}")
+            return False
+
+        # Валидация табельного
+        if not re.match(r"^\d{1,10}$", personnel_number):
+            # messagebox.showerror("Ошибка импорта", f"Некорректный табельный номер {personnel_number}!") # убрал
+            log.error(
+                f"Ошибка импорта: Некорректный табельный номер {personnel_number}!")
+            return False
+
+         # Проверка на дубликат табельного номера
+        # !!!
+        if self.employee_repository.personnel_number_exists(personnel_number):
+            #    messagebox.showerror("Ошибка импорта",  # Убираем messagebox
+            #                        f"Сотрудник с табельным номером {personnel_number} уже существует.")
+            log.warning(
+                f"Ошибка импорта: дубликат табельного номера {personnel_number}")
+            return False  # Дубликат
+
+        # Валидация ФИО (только русские буквы, пробелы, дефисы).
+        if not re.match(r"^[а-яА-ЯёЁ -]+$", lastname):
+            # messagebox.showerror("Ошибка импорта", "Некорректная фамилия: " + lastname) # убрал
+            log.error(f"Ошибка импорта: Некорректная фамилия: {lastname}")
+            return False
+        if not re.match(r"^[а-яА-ЯёЁ -]+$", firstname):
+            # messagebox.showerror("Ошибка импорта", "Некорректное имя: " + firstname)# убрал
+            log.error(f"Ошибка импорта: Некорректное имя: {firstname}")
+            return False
+        if middlename and not re.match(r"^[а-яА-ЯёЁ -]+$", middlename):
+            # messagebox.showerror("Ошибка импорта", "Некорректное отчество: " + middlename)# убрал
+            log.error(f"Ошибка импорта: Некорректное отчество: {middlename}")
+            return False
+        if len(lastname) > 50 or len(firstname) > 50 or len(middlename) > 50:
+            #   messagebox.showerror("Ошибка","Слишком длинное ФИО в строке: "+ str(row))# убрал
+            log.error(f"Ошибка импорта: Слишком длинное ФИО. Строка {row}")
+            return False
+
+        # Валидация даты рождения.
+        try:
+            birth_date = datetime.datetime.strptime(
+                birth_date_str, "%Y-%m-%d").date()
+            today = datetime.date.today()
+            if birth_date > today:
+                # messagebox.showerror("Ошибка импорта", "Дата рождения не может быть в будущем: "+ birth_date_str)# убрал
+                log.error(f"Ошибка импорта: Дата в будущем {birth_date_str}")
+                return False
+
+            age = today.year - birth_date.year - \
+                ((today.month, today.day) < (birth_date.month, birth_date.day))
+            if age < 18:
+                #  messagebox.showerror("Ошибка импорта", "Сотрудник должен быть старше 18 лет: " + birth_date_str)# убрал
+                log.error(
+                    f"Ошибка импорта: Сотрудник младше 18 {birth_date_str}")
+                return False
+
+        except ValueError:
+            # messagebox.showerror("Ошибка импорта", "Некорректный формат даты рождения: " + birth_date_str)# убрал
+            log.error(f"Ошибка импорта: Некорректная дата {birth_date_str}")
+            return False
+
+        #  !!! Используем *правильные* репозитории !!!
+        gender_id = self.gender_repository.get_by_name(gender_name)
+        position_id = self.position_repository.get_by_name(position_name)
+        department_ids = self.department_repository.get_by_name(
+            department_name)  # !!!
+        department_id = [item[0]
+                         for item in department_ids][0] if department_ids else None
+        state_id = self.state_repository.get_by_name(state_name)
+
+        if gender_id is None or position_id is None or department_id is None or state_id is None:
+            # messagebox.showerror("Ошибка импорта", f"Не найдены значения в справочниках для строки: {row}")
+            log.error(
+                f"Ошибка импорта: Не найдены ID в справочниках. Строка: {row}")
+            return False
+
+        # !!! self.employee_repository !!!
+        success = self.employee_repository.insert_employee(
+            personnel_number, lastname, firstname, middlename, birth_date_str,
+            gender_id, position_id, department_id, state_id
+        )
+
+        if not success:
+            # messagebox.showerror("Ошибка","Ошибка при добавлении сотрудника в БД (импорт)") # !!!
+            log.error(
+                f"Ошибка при добавлении сотрудника {personnel_number} в БД")  # !!!
+            return False
+
+        return True
+
+

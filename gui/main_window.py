@@ -57,8 +57,6 @@ class MainWindow(ctk.CTkFrame):
 
         self.create_widgets()
         self.current_frame = None  # !!! Добавляем атрибут для хранения текущего фрейма
-        #  Изначально отображаем вкладку "Сотрудники"
-        self.show_employees()
 
     def create_widgets(self):
         """
@@ -314,6 +312,9 @@ class MainWindow(ctk.CTkFrame):
         """
         log.debug(f"Отображение фрейма: {frame_class.__name__}")  # !!!
         # Сначала удаляем текущий фрейм, если он есть
+        if self.current_frame is not None and isinstance(self.current_frame, frame_class):
+            return  # Уже на этой вкладке
+
         if self.current_frame is not None:
             self.current_frame.destroy()
         # Создаем новый фрейм

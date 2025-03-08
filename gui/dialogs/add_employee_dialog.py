@@ -24,7 +24,11 @@ class AddEmployeeDialog(ctk.CTkToplevel):
             db (Database): Объект базы данных.
         """
         super().__init__(master)
-        self.repository = EmployeeRepository(db)
+        self.employee_repository = master.repository  # ссылка
+        self.gender_repository = master.gender_repository
+        self.position_repository = master.position_repository
+        self.state_repository = master.state_repository
+        self.department_repository = master.department_repository
         self.title("Добавить сотрудника")
         self.geometry("650x920")
         self.resizable(False, False)
@@ -285,9 +289,9 @@ class AddEmployeeDialog(ctk.CTkToplevel):
         Загружает данные в выпадающие списки (пол, должность, состояние).
         """
         log.debug("Загрузка данных в комбобоксы")
-        genders = self.repository.get_genders()
-        positions = self.repository.get_all_positions()
-        states = self.repository.get_states()
+        genders = self.gender_repository.get_all()   # !!!
+        positions = self.position_repository.get_all()    # !!!
+        states = self.state_repository.get_all()     # !!!
 
         if genders is None or positions is None or states is None:
             messagebox.showerror(
@@ -302,9 +306,6 @@ class AddEmployeeDialog(ctk.CTkToplevel):
         self.update_departments()
 
     def update_departments(self, event=None):
-        """
-        Обновляет список доступных подразделений в зависимости от выбранной должности.
-        """
         selected_position = self.position_combo.get()
         if not selected_position:
             self.department_label.configure(text="")
@@ -313,10 +314,10 @@ class AddEmployeeDialog(ctk.CTkToplevel):
             return
 
         #  Получаем ID
-        position_id = self.repository.fetch_one(
-            "SELECT ID FROM Positions WHERE Name = ?", (selected_position,))[0]
+        position_id = self.position_repository.get_by_name(selected_position)
 
-        departments = self.repository.get_departments_for_position(position_id)
+        departments = self.position_repository.get_departments_for_position(
+            position_id)  # !!!
 
         if departments is None:
             messagebox.showerror(
@@ -443,21 +444,18 @@ class AddEmployeeDialog(ctk.CTkToplevel):
         # Дата рождения (строка)
         birth_date_str = f"{birth_year}-{birth_month_index:02}-{birth_day:02}"
 
-        if self.repository.fetch_one("SELECT 1 FROM Employees WHERE PersonnelNumber = ?", (personnel_number,)):
+        if self.employee_repository.db.fetch_one("SELECT 1 FROM Employees WHERE PersonnelNumber = ?", (personnel_number,)):
             messagebox.showerror(
                 "Ошибка", "Сотрудник с таким табельным номером уже существует!")
             log.warning(f"Табельный номер уже существует: {personnel_number}")
             return
 
         # --- Получаем ID ---  (ИСПОЛЬЗУЕМ МЕТОДЫ Database!)
-        gender_id = self.repository.get_gender_id(gender)
-        position_id = self.repository.get_position_id(position)
-
-        # Находим ID департамента.
-        dep_ids = self.repository.get_department_by_name(department)
-        department_id = [item[0] for item in dep_ids][0]  # берем первый
-
-        state_id = self.repository.get_state_id(state)
+        gender_id = self.gender_repository.get_by_name(gender)          # !!!
+        position_id = self.position_repository.get_by_name(position)      # !!!
+        dep_ids = self.department_repository.get_by_name(department)    # !!!
+        department_id = [item[0] for item in dep_ids][0]
+        state_id = self.state_repository.get_by_name(state)
 
         log.debug(
             f"Полученные ID: gender_id={gender_id}, position_id={position_id}, department_id={department_id}, state_id={state_id}")
@@ -468,7 +466,7 @@ class AddEmployeeDialog(ctk.CTkToplevel):
             return
 
         # --- Добавляем сотрудника ---
-        success = self.repository.insert_employee(
+        success = self.employee_repository.insert_employee(  # !!!!!!
             personnel_number, lastname, firstname, middlename, birth_date_str,
             gender_id, position_id, department_id, state_id
         )
