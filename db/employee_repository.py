@@ -30,7 +30,7 @@ class EmployeeRepository:  # !!! название класса
 
         log.debug(f"Итоговый запрос: {query}, параметры: {params}")
 
-        data = self.fetch_all(query, params)
+        data = self.db.fetch_all(query, params)
         if data is None:
             log.warning("get_employees вернул None")
             return None, 0
@@ -44,7 +44,7 @@ class EmployeeRepository:  # !!! название класса
 
         log.debug(
             f"Запрос для подсчета количества: {count_query}, параметры: {count_params}")
-        total_rows = self.fetch_one(count_query, count_params)[0]
+        total_rows = self.db.fetch_one(count_query, count_params)[0]
         log.debug(
             f"get_employees: общее количество строк: {total_rows}, получено данных {len(data) if data else 0}")
 
