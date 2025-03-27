@@ -13,7 +13,7 @@ import logging
 # Импортируем классы наших вкладок
 from .employees_frame import EmployeesFrame
 # from .absences_frame import AbsencesFrame
-# from .events_frame import EventsFrame
+from .events_frame import EventsFrame
 # from .reports_frame import ReportsFrame
 # from .users_frame import UsersFrame
 # from .dashboard_frame import DashboardFrame
@@ -334,8 +334,8 @@ class MainWindow(ctk.CTkFrame):
 
     def show_events(self):
         """Отображает вкладку 'Кадровые события'."""
-        log.info("Переход на вкладку 'Кадровые события'")  # !!!
-        # self.show_frame(EventsFrame)  # раскомментировал
+        log.info("Переход на вкладку 'Кадровые события'")
+        self.show_frame(EventsFrame)
 
     def show_absences(self):
         """Отображает вкладку 'Отсутствия'."""

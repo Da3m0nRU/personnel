@@ -37,6 +37,7 @@ class EmployeesFrame(BaseTableFrame):
         self.position_repository = PositionRepository(db)  # !!!
         self.state_repository = StateRepository(db)       # !!!
         self.department_repository = DepartmentRepository(db)  # !!!
+        self.db = db
         self.create_widgets()
         self.load_data()
         self.display_data()
@@ -186,36 +187,55 @@ class EmployeesFrame(BaseTableFrame):
             self.total_rows = 0
 
     def display_data(self, search_term=None):
-        """Отображает данные."""
-        log.debug(f"Отображение данных")
+        """
+        Отображает данные в таблице с учетом текущей страницы и поискового запроса.
+        """
+        log.debug("Отображение данных (EmployeesFrame)")
 
-        if not self.all_data:  # Если данных нет, загружаем
+        # Если данных нет, загружаем (это произойдет при первом запуске)
+        if not self.all_data:
             self.load_data()
 
-        if search_term := self.search_entry.get().lower():  # Фильтрация
+        # --- ФИЛЬТРАЦИЯ (поиск) ---
+        if search_term is None:  # !!! Явный None!
+            search_term = self.search_entry.get().lower()
+
+        if search_term:
             filtered_data = []
             for row in self.all_data:
-                if any(search_term in str(value).lower() for value in row):  # !!!
+                # Проверяем, есть ли search_term в КАКОМ-ЛИБО поле строки.
+                #  Преобразуем все в нижний регистр для регистронезависимого поиска
+                if any(search_term in str(value).lower() for value in row):
                     filtered_data.append(row)
-            self.data = filtered_data  # filtered_data в self.data.
-            self.total_rows = len(filtered_data)
-        else:
-            self.data = self.all_data  # Используем self.all_data.
-            self.total_rows = len(self.all_data)
+            display_data = filtered_data  # Для пагинации.
+            self.total_rows = len(filtered_data)  # Обновляем total_rows!
 
+        else:
+            display_data = self.all_data  # Отображаем все данные.
+            self.total_rows = len(self.all_data)  # Обновляем!
+
+        # --- ПАГИНАЦИЯ ---
         start_index = (self.current_page - 1) * self.rows_per_page
         end_index = start_index + self.rows_per_page
-        current_page_data = self.data[start_index:end_index]
+        current_page_data = display_data[start_index:end_index]
+
+        # --- ОТОБРАЖЕНИЕ ---
+        #  Очищаем таблицу (если в ней уже были данные)
         if self.table.total_rows() > 0:
             self.table.set_sheet_data([[None for _ in range(len(
                 self.table.headers()))] for _ in range(self.table.total_rows())], redraw=False)
 
-        if current_page_data:  # Если данные есть
+        if current_page_data:  # Если данные есть.
+            # tksheet сам разберется
             self.table.set_sheet_data(current_page_data)
-        self.table.refresh()
+        # else: # НЕ НУЖНО!  Мы УЖЕ очистили таблицу выше.
+        #    self.table.set_sheet_data([]) #  Очищаем, если данных нет
+
+        self.table.refresh()  # Обновляем таблицу
+
+        # --- Обновляем метку пагинации и состояние кнопок ---
         self.update_page_label()
         self.update_buttons_state()
-    # --- Методы, специфичные ИМЕННО для EmployeesFrame ---
 
     def add_employee(self):
         """Открывает диалог добавления нового сотрудника."""
@@ -248,7 +268,7 @@ class EmployeesFrame(BaseTableFrame):
             return
 
         dialog = EditEmployeeDialog(
-            self, self.repository, employee_data)  # Передаем данные в
+            self, self.db, employee_data)  # Передаем данные в
         dialog.wait_window()  # Ждем
         self.load_data()          # Обновляем
         self.display_data()
@@ -291,7 +311,6 @@ class EmployeesFrame(BaseTableFrame):
     def search(self, event):
         if self.current_page != 1:
             self.current_page = 1
-        self.load_data()
         self.display_data()
 
     def import_data(self):

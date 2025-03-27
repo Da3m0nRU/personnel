@@ -117,3 +117,55 @@ GET_DEPARTMENTS_FOR_POSITION = """
     WHERE PD.PositionID = ?
 """
 # --- Дополнительные запросы (если понадобятся в будущем) ---
+INSERT_EMPLOYEE_EVENT = """
+    INSERT INTO EmployeeEvents (EmployeePersonnelNumber, EventID, EventDate, DepartmentID, PositionID, Reason)
+    VALUES (?, ?, ?, ?, ?, ?)
+"""
+
+GET_EMPLOYEE_EVENTS = """
+    SELECT
+        EE.EventDate,
+        EV.EventName,
+        E.PersonnelNumber,
+        -- Объединяем ФИО, обрабатывая возможное отсутствие отчества
+        E.LastName || ' ' || E.FirstName || COALESCE(' ' || E.MiddleName, '') AS FullName,
+        P.Name AS NewPositionName,
+        D.Name AS NewDepartmentName,
+        EE.Reason
+    FROM EmployeeEvents AS EE
+    JOIN Events AS EV ON EE.EventID = EV.ID
+    JOIN Employees AS E ON EE.EmployeePersonnelNumber = E.PersonnelNumber
+    LEFT JOIN Positions AS P ON EE.PositionID = P.ID -- LEFT JOIN на случай, если PositionID не указан для события
+    LEFT JOIN Departments AS D ON EE.DepartmentID = D.ID -- LEFT JOIN на случай, если DepartmentID не указан
+    WHERE 1=1 -- Заглушка для динамического добавления условий поиска
+"""
+
+# Дополнение к запросу GET_EMPLOYEE_EVENTS для поиска
+GET_EMPLOYEE_EVENTS_SEARCH = """
+   AND (EE.EventDate LIKE :search_term           -- Поиск по дате
+       OR EV.EventName LIKE :search_term         -- По типу события
+       OR E.PersonnelNumber LIKE :search_term    -- По табельному номеру
+       OR E.LastName LIKE :search_term          -- По фамилии
+       OR E.FirstName LIKE :search_term         -- По имени
+       OR E.MiddleName LIKE :search_term        -- По отчеству (если есть)
+       OR P.Name LIKE :search_term              -- По новой должности (если есть)
+       OR D.Name LIKE :search_term              -- По новому отделу (если есть)
+       OR EE.Reason LIKE :search_term           -- По причине (если есть)
+      )
+"""
+
+# Дополнение для сортировки
+GET_EMPLOYEE_EVENTS_ORDER_BY = " ORDER BY EE.EventDate DESC, EE.ID DESC"
+
+# Запрос для подсчета общего количества событий (с учетом поиска)
+GET_EMPLOYEE_EVENTS_COUNT = """
+    SELECT COUNT(EE.ID)
+    FROM EmployeeEvents AS EE
+    JOIN Events AS EV ON EE.EventID = EV.ID
+    JOIN Employees AS E ON EE.EmployeePersonnelNumber = E.PersonnelNumber
+    LEFT JOIN Positions AS P ON EE.PositionID = P.ID
+    LEFT JOIN Departments AS D ON EE.DepartmentID = D.ID
+    WHERE 1=1
+"""
+# Поиск для COUNT - такой же, как основной
+GET_EMPLOYEE_EVENTS_COUNT_SEARCH = GET_EMPLOYEE_EVENTS_SEARCH

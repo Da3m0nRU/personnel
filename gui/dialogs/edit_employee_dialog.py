@@ -6,6 +6,9 @@ import datetime
 from tkinter import messagebox
 import logging
 from db.employee_repository import EmployeeRepository
+from db.employee_event_repository import EmployeeEventRepository
+import db.queries as q
+from .confirm_event_dialog import ConfirmEventDialog
 
 log = logging.getLogger(__name__)
 
@@ -25,6 +28,7 @@ class EditEmployeeDialog(ctk.CTkToplevel):
             employee_data (tuple): Данные о сотруднике (результат fetch_one).
         """
         super().__init__(master)
+        self.employee_event_repository = EmployeeEventRepository(db)
         self.employee_data = employee_data  # Сохраняем данные
         self.employee_repository = master.repository  # !!!
         self.gender_repository = master.gender_repository  # !!!
@@ -341,7 +345,8 @@ class EditEmployeeDialog(ctk.CTkToplevel):
 
     def update_employee(self):
         """
-        Обновляет данные сотрудника в базе данных.
+        Обновляет данные сотрудника в базе данных,
+        и, если необходимо, создает запись о кадровом событии.
         """
         log.info("Обновление данных сотрудника")
 
@@ -357,6 +362,7 @@ class EditEmployeeDialog(ctk.CTkToplevel):
         department = self.department_label.cget("text")
         state = self.state_combo.get()
 
+        # --- Валидация ---
         if not all([personnel_number, lastname, firstname, birth_year, birth_month, birth_day, gender, position, department, state]):
             messagebox.showerror("Ошибка", "Заполните все обязательные поля!")
             log.warning("Не все поля заполнены")
@@ -438,37 +444,90 @@ class EditEmployeeDialog(ctk.CTkToplevel):
             return
 
         birth_date_str = f"{birth_year}-{birth_month_index:02}-{birth_day:02}"
+        # --- Конец валидации ---
 
-        gender_id = self.gender_repository.get_by_name(gender)
-        position_id = self.position_repository.get_by_name(position)
+        update_employee_data = True
 
-        dep_ids = self.department_repository.get_by_name(
-            department)  # !!! получаем department ID
-        department_id = [item[0] for item in dep_ids][0]
+        # --- Определение кадрового события и открытие диалога подтверждения ---
+        old_state = self.employee_data[8]
+        old_department = self.employee_data[7]
+        old_position = self.employee_data[6]
 
-        state_id = self.state_repository.get_by_name(state)
-        log.debug(
-            f"Полученные ID: gender_id={gender_id}, position_id={position_id}, department_id={department_id}, state_id={state_id}")
+        new_state = self.state_combo.get()
+        new_department_name = self.department_label.cget("text")
+        new_position = self.position_combo.get()
 
-        if gender_id is None or position_id is None or department_id is None or state_id is None:
-            messagebox.showerror("Ошибка", "Не найдена запись в справочнике!")
-            log.error("Не найдены ID в справочниках")
-            return
-        success = self.employee_repository.update_employee(  # !!!
-            personnel_number, lastname, firstname, middlename, birth_date_str,
-            gender_id, position_id, department_id, state_id
-        )
-        if success:
-            messagebox.showinfo("Успех", "Данные сотрудника обновлены!")
-            log.info(f"Данные сотрудника {personnel_number} обновлены")
-            self.destroy()
-            if self.master and hasattr(self.master, "display_data"):
-                self.master.display_data()
-        else:
-            messagebox.showerror(
-                "Ошибка", "Ошибка при обновлении данных сотрудника!")
-            log.error(
-                f"Ошибка при обновлении данных сотрудника {personnel_number}")
+        event_type = None
+        if new_state != old_state:
+            if new_state == "Уволен":
+                event_type = "Увольнение"
+            elif old_state == "Уволен" and new_state == "Работает":
+                event_type = "Прием"
+            elif new_state == "Недоступен":
+                event_type = "Недоступен"
+            elif old_state == "Недоступен" and new_state == "Работает":
+                event_type = "Возвращение к работе"
+
+        elif new_department_name != old_department or new_position != old_position:
+            event_type = "Перемещение"
+
+        if event_type:
+            department_id = None
+            if new_department_name:
+                department_ids = self.department_repository.get_by_name(
+                    new_department_name)
+                department_id = [
+                    item[0] for item in department_ids][0] if department_ids else None
+
+            position_id = self.position_repository.get_by_name(new_position)
+
+            # --- Диалог подтверждения ---
+            dialog = ConfirmEventDialog(self, event_type,
+                                        f"{self.employee_data[2]} {self.employee_data[1]} {self.employee_data[3]}",
+                                        self.employee_event_repository,  # !!!  ИСПРАВЛЕНО
+                                        personnel_number,
+                                        department_id,
+                                        position_id)
+            dialog.wait_window()
+
+            #  Проверяем, было ли подтверждено событие.
+            if not dialog.was_confirmed():  # Изменено
+                update_employee_data = False
+
+        # --- Обновление данных сотрудника (если не было отмены) ---
+        if update_employee_data:
+            gender_id = self.gender_repository.get_by_name(gender)
+            position_id = self.position_repository.get_by_name(position)
+            dep_ids = self.department_repository.get_by_name(department)
+            department_id = [item[0]
+                             for item in dep_ids][0] if dep_ids else None  # !!!
+            state_id = self.state_repository.get_by_name(state)
+
+            log.debug(
+                f"Полученные ID: gender_id={gender_id}, position_id={position_id}, department_id={department_id}, state_id={state_id}")
+
+            if gender_id is None or position_id is None or department_id is None or state_id is None:
+                messagebox.showerror(
+                    "Ошибка", "Не найдена запись в справочнике!")
+                log.error("Не найдены ID в справочниках")
+                return
+
+            success = self.employee_repository.update_employee(
+                personnel_number, lastname, firstname, middlename, birth_date_str,
+                gender_id, position_id, department_id, state_id
+            )
+
+            if success:
+                messagebox.showinfo("Успех", "Данные сотрудника обновлены!")
+                log.info(f"Данные сотрудника {personnel_number} обновлены")
+                self.destroy()  # Закрываем диалог редактирования
+                if self.master and hasattr(self.master, "display_data"):
+                    self.master.display_data()  # Обновляем данные в EmployeesFrame
+            else:
+                messagebox.showerror(
+                    "Ошибка", "Ошибка при обновлении данных сотрудника!")
+                log.error(
+                    f"Ошибка при обновлении данных сотрудника {personnel_number}")
 
     def restore_fields(self):
         """
@@ -601,3 +660,17 @@ class EditEmployeeDialog(ctk.CTkToplevel):
         """
         log.debug("Закрытие диалога EditEmployeeDialog без сохранения")
         self.destroy()
+
+    def insert_event(self, personnel_number, event_id, event_date, department_id, position_id, reason=None):
+        """Добавляет запись о кадровом событии."""
+
+        log.debug(
+            f"Добавление кадрового события: personnel_number={personnel_number}, event_id={event_id}, event_date={event_date}, department_id={department_id}, position_id={position_id}, reason={reason}")
+
+        params = (personnel_number, event_id, event_date,
+                  department_id, position_id, reason)
+        result = self.db.execute_query(
+            q.INSERT_EMPLOYEE_EVENT, params)  # !!! ЗАПРОС НИЖЕ!!!
+
+        log.debug(f"Результат добавления кадрового события: {result}")  # !!!
+        return result
