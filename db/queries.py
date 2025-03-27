@@ -169,3 +169,76 @@ GET_EMPLOYEE_EVENTS_COUNT = """
 """
 # Поиск для COUNT - такой же, как основной
 GET_EMPLOYEE_EVENTS_COUNT_SEARCH = GET_EMPLOYEE_EVENTS_SEARCH
+
+GET_ABSENCES = """
+    SELECT
+        E.PersonnelNumber,
+        E.LastName || ' ' || E.FirstName || COALESCE(' ' || E.MiddleName, '') AS FullName,
+        A.AbsenceDate,
+        CASE A.FullDay WHEN 1 THEN 'Да' ELSE 'Нет' END AS IsFullDay,
+        -- Убираем COALESCE, т.к. NULL больше не ожидается
+        A.StartingTime AS StartTime,
+        A.EndingTime AS EndTime,
+        A.Reason
+    FROM Absences AS A
+    JOIN Employees AS E ON A.EmployeePersonnelNumber = E.PersonnelNumber
+    WHERE 1=1
+"""
+
+GET_ABSENCES_SEARCH = """
+    AND (E.PersonnelNumber LIKE :search_term
+        OR E.LastName LIKE :search_term
+        OR E.FirstName LIKE :search_term
+        OR E.MiddleName LIKE :search_term
+        OR A.AbsenceDate LIKE :search_term
+        OR (CASE A.FullDay WHEN 1 THEN 'Да' ELSE 'Нет' END) LIKE :search_term -- Поиск по Да/Нет
+        OR A.StartingTime LIKE :search_term
+        OR A.EndingTime LIKE :search_term
+        OR A.Reason LIKE :search_term
+       )
+"""
+
+GET_ABSENCES_ORDER_BY = " ORDER BY A.AbsenceDate DESC, E.LastName, E.FirstName"
+
+GET_ABSENCES_COUNT = """
+    SELECT COUNT(A.ID)
+    FROM Absences AS A
+    JOIN Employees AS E ON A.EmployeePersonnelNumber = E.PersonnelNumber
+    WHERE 1=1
+"""
+
+GET_ABSENCES_COUNT_SEARCH = GET_ABSENCES_SEARCH
+
+INSERT_ABSENCE = """
+    INSERT INTO Absences (EmployeePersonnelNumber, AbsenceDate, FullDay, StartingTime, EndingTime, Reason)
+    VALUES (?, ?, ?, ?, ?, ?)
+"""
+
+# Запрос для получения списка сотрудников (Таб.№ и ФИО) для диалога добавления отсутствия
+GET_EMPLOYEE_LIST_FOR_ABSENCE = """
+    SELECT PersonnelNumber, LastName || ' ' || FirstName || COALESCE(' ' || MiddleName, '') AS FullName
+    FROM Employees
+    WHERE StateID = (SELECT ID FROM States WHERE StateName = 'Работает') -- Только работающие
+    ORDER BY LastName, FirstName
+"""
+
+# Запрос для получения ID графика, времени начала и конца работы
+# для конкретной должности (PositionID) и дня недели (1=Пн, 7=Вс)
+GET_WORKING_HOURS_FOR_POSITION_AND_DAY = """
+    SELECT
+        S.ID AS ScheduleID,      -- ID самого графика
+        WH.StartingTime,         -- Время начала
+        WH.EndingTime            -- Время конца
+    FROM Schedules AS S
+    JOIN WorkingHours AS WH ON S.WorkingHoursID = WH.ID
+    WHERE S.PositionID = ?    -- По ID должности
+      AND S.DayOfWeekID = ?   -- По ID дня недели (1-7)
+    LIMIT 1 -- На случай, если будет несколько записей (хотя не должно)
+"""
+
+# Обновляем INSERT_ABSENCE, чтобы принимать ScheduleID
+# ScheduleID может быть NULL, если время вводилось вручную
+INSERT_ABSENCE = """
+    INSERT INTO Absences (EmployeePersonnelNumber, AbsenceDate, FullDay, StartingTime, EndingTime, Reason, ScheduleID)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+"""

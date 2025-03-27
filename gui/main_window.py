@@ -12,7 +12,7 @@ import logging
 
 # Импортируем классы наших вкладок
 from .employees_frame import EmployeesFrame
-# from .absences_frame import AbsencesFrame
+from .absences_frame import AbsencesFrame
 from .events_frame import EventsFrame
 # from .reports_frame import ReportsFrame
 # from .users_frame import UsersFrame
@@ -340,7 +340,7 @@ class MainWindow(ctk.CTkFrame):
     def show_absences(self):
         """Отображает вкладку 'Отсутствия'."""
         log.info("Переход на вкладку 'Отсутствия'")    # !!!
-        # self.show_frame(AbsencesFrame)  # раскомментировал
+        self.show_frame(AbsencesFrame)
 
     def show_reports(self):
         """Отображает вкладку 'Отчеты'."""
