@@ -63,3 +63,52 @@ class EmployeeEventRepository:
             f"get_events: Найдено строк: {total_rows}, получено данных: {len(data)}")
 
         return data, total_rows
+
+       # --- Методы для отчетов ---
+    def get_dismissal_counts_by_month(self, start_date, end_date):
+        # ... (Код метода прежний) ...
+        log.debug(f"Запрос увольнений по месяцам: {start_date} - {end_date}")
+        result = self.db.fetch_all(
+            q.GET_DISMISSAL_COUNT_BY_MONTH, (start_date, end_date))
+        if result is None:
+            log.warning(...)
+            return []
+        log.debug(f"Получено {len(result)} записей по месяцам.")
+        return result
+
+    # НОВЫЙ метод
+    def get_dismissal_counts_by_day(self, start_date, end_date):
+        """ Получает количество увольнений по дням за период. """
+        log.debug(f"Запрос увольнений по дням: {start_date} - {end_date}")
+        result = self.db.fetch_all(
+            q.GET_DISMISSAL_COUNT_BY_DAY, (start_date, end_date))
+        if result is None:
+            log.warning("Запрос увольнений по дням не вернул данных.")
+            return []
+        log.debug(f"Получено {len(result)} записей по дням.")
+        return result
+
+    # НОВЫЙ метод
+    def get_dismissal_counts_by_year(self, start_date, end_date):
+        """ Получает количество увольнений по годам за период. """
+        log.debug(f"Запрос увольнений по годам: {start_date} - {end_date}")
+        result = self.db.fetch_all(
+            q.GET_DISMISSAL_COUNT_BY_YEAR, (start_date, end_date))
+        if result is None:
+            log.warning("Запрос увольнений по годам не вернул данных.")
+            return []
+        log.debug(f"Получено {len(result)} записей по годам.")
+        return result
+
+    def get_dismissed_employees_details(self, start_date, end_date):
+        # ... (Код метода прежний) ...
+        log.debug(f"Запрос деталей уволенных: {start_date} - {end_date}")
+        result = self.db.fetch_all(
+            q.GET_DISMISSED_EMPLOYEES_DETAILS, (start_date, end_date))
+        if result is None:
+            log.warning(...)
+            return []
+        log.debug(f"Получено {len(result)} записей уволенных.")
+        processed = [tuple("" if item is None else item for item in row)
+                     for row in result]
+        return processed

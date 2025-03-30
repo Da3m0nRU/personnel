@@ -143,3 +143,87 @@ GET_WORKING_HOURS_FOR_POSITION_AND_DAY = """
     JOIN WorkingHours AS WH ON S.WorkingHoursID = WH.ID
     WHERE S.PositionID = ? AND S.DayOfWeekID = ? LIMIT 1
 """
+
+# --- Отчеты ---
+
+# Отчет по увольнениям: Данные для ГРАФИКА
+# Считаем количество увольнений по месяцам в заданном периоде
+# Используем substr для извлечения 'ГГГГ-ММ'
+GET_DISMISSAL_COUNT_BY_MONTH = """
+    SELECT
+        substr(EE.EventDate, 1, 7) AS DismissalMonth, -- Получаем 'ГГГГ-ММ'
+        COUNT(EE.ID) AS DismissalCount
+    FROM EmployeeEvents AS EE
+    JOIN Events AS EV ON EE.EventID = EV.ID
+    WHERE EV.EventName = 'Увольнение' -- Только события увольнения
+      AND EE.EventDate BETWEEN ? AND ?   -- В заданном диапазоне дат (включительно)
+    GROUP BY DismissalMonth           -- Группируем по месяцу
+    ORDER BY DismissalMonth ASC;      -- Сортируем по месяцу
+"""
+
+# Отчет по увольнениям: Данные для ТАБЛИЦЫ
+# Получаем детальный список уволенных в заданном периоде
+GET_DISMISSED_EMPLOYEES_DETAILS = """
+    SELECT
+        E.PersonnelNumber,
+        E.LastName || ' ' || E.FirstName || COALESCE(' ' || E.MiddleName, '') AS FullName,
+        P.Name AS PositionName,
+        D.Name AS DepartmentName,
+        -- Ищем дату приема (последнее событие 'Прием' ДО даты увольнения)
+        (SELECT MAX(EventDate)
+         FROM EmployeeEvents AS EE_Hire
+         JOIN Events AS EV_Hire ON EE_Hire.EventID = EV_Hire.ID
+         WHERE EE_Hire.EmployeePersonnelNumber = E.PersonnelNumber
+           AND EV_Hire.EventName = 'Прием'
+           AND EE_Hire.EventDate <= EE_Dismiss.EventDate -- Не позже даты увольнения
+        ) AS HireDate,
+        EE_Dismiss.EventDate AS DismissalDate,
+        EE_Dismiss.Reason AS DismissalReason
+    FROM EmployeeEvents AS EE_Dismiss
+    JOIN Employees AS E ON EE_Dismiss.EmployeePersonnelNumber = E.PersonnelNumber
+    JOIN Events AS EV ON EE_Dismiss.EventID = EV.ID
+    LEFT JOIN Positions AS P ON E.PositionID = P.ID   -- Должность на момент увольнения (из Employees)
+    LEFT JOIN Departments AS D ON E.DepartmentID = D.ID -- Отдел на момент увольнения (из Employees)
+    WHERE EV.EventName = 'Увольнение'
+      AND EE_Dismiss.EventDate BETWEEN ? AND ? -- В заданном диапазоне
+    ORDER BY EE_Dismiss.EventDate DESC; -- Сначала последние уволенные
+"""
+
+# НОВЫЙ: Отчет по увольнениям: Данные для ГРАФИКА (по дням)
+GET_DISMISSAL_COUNT_BY_DAY = """
+    SELECT
+        EE.EventDate AS DismissalDay, -- Дата как есть
+        COUNT(EE.ID) AS DismissalCount
+    FROM EmployeeEvents AS EE
+    JOIN Events AS EV ON EE.EventID = EV.ID
+    WHERE EV.EventName = 'Увольнение'
+      AND EE.EventDate BETWEEN ? AND ?
+    GROUP BY DismissalDay
+    ORDER BY DismissalDay ASC;
+"""
+
+# НОВЫЙ: Отчет по увольнениям: Данные для ГРАФИКА (по годам)
+GET_DISMISSAL_COUNT_BY_YEAR = """
+    SELECT
+        substr(EE.EventDate, 1, 4) AS DismissalYear, -- Получаем 'ГГГГ'
+        COUNT(EE.ID) AS DismissalCount
+    FROM EmployeeEvents AS EE
+    JOIN Events AS EV ON EE.EventID = EV.ID
+    WHERE EV.EventName = 'Увольнение'
+      AND EE.EventDate BETWEEN ? AND ?
+    GROUP BY DismissalYear
+    ORDER BY DismissalYear ASC;
+"""
+
+GET_ABSENCES_DETAILS_FOR_REPORT = """
+    SELECT
+        EmployeePersonnelNumber,
+        AbsenceDate,
+        FullDay,
+        StartingTime, -- Может быть NULL из старых версий или если не был подставлен
+        EndingTime,   -- Может быть NULL
+        ScheduleID    -- Может быть NULL
+    FROM Absences
+    WHERE AbsenceDate BETWEEN ? AND ?
+    ORDER BY EmployeePersonnelNumber, AbsenceDate; -- Сортируем для возможной доп. логики
+"""

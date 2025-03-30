@@ -14,7 +14,7 @@ import logging
 from .employees_frame import EmployeesFrame
 from .absences_frame import AbsencesFrame
 from .events_frame import EventsFrame
-# from .reports_frame import ReportsFrame
+from .reports_frame import ReportsFrame
 # from .users_frame import UsersFrame
 # from .dashboard_frame import DashboardFrame
 
@@ -345,7 +345,7 @@ class MainWindow(ctk.CTkFrame):
     def show_reports(self):
         """Отображает вкладку 'Отчеты'."""
         log.info("Переход на вкладку 'Отчеты'")   # !!!
-        # self.show_frame(ReportsFrame)  # раскомментировал
+        self.show_frame(ReportsFrame)  # раскомментировал
 
     def show_users(self):
         """Отображает вкладку 'Пользователи'."""

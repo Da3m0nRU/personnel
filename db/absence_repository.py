@@ -181,3 +181,33 @@ class AbsenceRepository:
         log.debug(
             f"Результат проверки: {'Найдено' if exists else 'Не найдено'}")
         return exists
+
+    def get_absences_details_for_period(self, start_date, end_date):
+        """ Получает детали всех записей отсутствий за заданный период. """
+        log.debug(
+            f"Запрос деталей отсутствий для отчета: {start_date} - {end_date}")
+        result = self.db.fetch_all(
+            q.GET_ABSENCES_DETAILS_FOR_REPORT, (start_date, end_date))
+        if result is None:
+            log.warning(
+                "Запрос деталей отсутствий для отчета не вернул данных.")
+            return []
+        log.debug(f"Получено {len(result)} записей отсутствий для отчета.")
+        # Возвращаем как есть (список кортежей)
+        return result
+
+    def get_employee_fio_map(self):
+        """
+        Возвращает словарь {PersonnelNumber: "Фамилия Имя Отчество"}.
+        Используется для быстрого получения ФИО в отчете.
+        """
+        log.debug("Запрос карты сотрудников (Таб.номер -> ФИО)")
+        # Запрос можно не выносить в queries.py, он простой
+        query = "SELECT PersonnelNumber, LastName || ' ' || FirstName || COALESCE(' ' || MiddleName, '') FROM Employees"
+        employees = self.db.fetch_all(query)
+        if employees is None:
+            log.error("Не удалось получить список сотрудников для карты ФИО.")
+            return {}
+        fio_map = {emp[0]: emp[1] for emp in employees}
+        log.debug(f"Создана карта ФИО для {len(fio_map)} сотрудников.")
+        return fio_map
