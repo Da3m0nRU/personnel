@@ -227,3 +227,21 @@ GET_ABSENCES_DETAILS_FOR_REPORT = """
     WHERE AbsenceDate BETWEEN ? AND ?
     ORDER BY EmployeePersonnelNumber, AbsenceDate; -- Сортируем для возможной доп. логики
 """
+
+# Запрос для получения ИСХОДНЫХ данных для расчета сумм отсутствий
+GET_RAW_ABSENCE_DATA_FOR_SUMMATION = """
+    SELECT
+        A.EmployeePersonnelNumber, -- 0: Табельный номер
+        E.LastName || ' ' || E.FirstName || COALESCE(' ' || E.MiddleName, '') AS FullName, -- 1: ФИО
+        E.PositionID,             -- 2: ID Должности сотрудника
+        A.AbsenceDate,            -- 3: Дата отсутствия
+        A.FullDay,                -- 4: Флаг полного дня (1 или 0)
+        A.StartingTime,           -- 5: Время начала (ЧЧ:ММ или NULL/пусто)
+        A.EndingTime,             -- 6: Время окончания (ЧЧ:ММ или NULL/пусто)
+        A.ScheduleID              -- 7: ID Графика из записи Absence (может быть NULL)
+    FROM Absences AS A
+    JOIN Employees AS E ON A.EmployeePersonnelNumber = E.PersonnelNumber
+    WHERE A.AbsenceDate BETWEEN ? AND ? -- Фильтр по дате
+    -- WHERE E.StateID = (SELECT ID FROM States WHERE StateName = 'Работает') -- ? Нужно ли только для работающих? ТЗ не уточняет. Пока оставим для всех.
+    ORDER BY A.EmployeePersonnelNumber, A.AbsenceDate; -- Сортировка для удобства обработки
+"""

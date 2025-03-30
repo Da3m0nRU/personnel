@@ -211,3 +211,19 @@ class AbsenceRepository:
         fio_map = {emp[0]: emp[1] for emp in employees}
         log.debug(f"Создана карта ФИО для {len(fio_map)} сотрудников.")
         return fio_map
+
+    def get_raw_absence_data(self, start_date, end_date):
+        """
+        Получает "сырые" данные об отсутствиях за период для последующего расчета сумм.
+        Возвращает список кортежей или пустой список.
+        """
+        log.debug(
+            f"Запрос сырых данных отсутствий за период: {start_date} - {end_date}")
+        result = self.db.fetch_all(
+            q.GET_RAW_ABSENCE_DATA_FOR_SUMMATION, (start_date, end_date))
+        if result is None:
+            log.warning("Запрос сырых данных отсутствий не вернул данных.")
+            return []
+        log.debug(f"Получено {len(result)} сырых записей об отсутствии.")
+        # Здесь не делаем замену None на '', т.к. None важен для логики расчета
+        return result
