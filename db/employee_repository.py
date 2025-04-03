@@ -10,44 +10,57 @@ class EmployeeRepository:  # !!! название класса
     def __init__(self, db: Database):
         self.db = db
 
-    def get_employees(self, search_term=None):
+    def get_employees(self, search_term=None, employee_pn_filter=None):
         """
-        Получает список сотрудников с поиском.
+        Получает список сотрудников с поиском и возможностью фильтрации по таб. номеру.
         """
         log.debug(
-            f"Вызов get_employees с параметрами: search_term={search_term}")
+            f"Вызов get_employees с search_term={search_term}, employee_pn_filter={employee_pn_filter}")
 
-        #  Собираем запрос
         query = q.GET_EMPLOYEES  # Основной запрос
-        params = []
+        # Используем словарь для параметров, чтобы избежать путаницы с позициями
+        params = {}
+
+        # --- Добавляем фильтр по сотруднику ---
+        if employee_pn_filter:
+            query += " AND E.PersonnelNumber = :pn_filter "  # Добавляем условие WHERE
+            params["pn_filter"] = employee_pn_filter      # Добавляем параметр
+        # --------------------------------------
 
         if search_term:
-            # Добавляем условие поиска, используя именованные параметры
-            query += q.GET_EMPLOYEES_SEARCH
-            params = {"search_term": f"%{search_term}%"}  # !!!
+            query += q.GET_EMPLOYEES_SEARCH  # Добавляем условие поиска
+            # Добавляем параметр поиска
+            params["search_term"] = f"%{search_term}%"
 
-        query += q.GET_EMPLOYEES_ORDER_BY  # Добавляем сортировку
+        query += q.GET_EMPLOYEES_ORDER_BY  # Сортировка
 
-        log.debug(f"Итоговый запрос: {query}, параметры: {params}")
-
-        data = self.db.fetch_all(query, params)
+        log.debug(
+            f"Итоговый запрос (get_employees): {query}, параметры: {params}")
+        data = self.db.fetch_all(query, params)  # Передаем словарь параметров
         if data is None:
             log.warning("get_employees вернул None")
             return None, 0
 
-        #  Запрос для подсчета количества записей (с учетом поиска).
+        # --- Запрос для подсчета количества (тоже с фильтрами) ---
         count_query = q.GET_EMPLOYEES_COUNT
-        count_params = []
+        count_params = {}
+
+        if employee_pn_filter:
+            count_query += " AND E.PersonnelNumber = :pn_filter "
+            count_params["pn_filter"] = employee_pn_filter
+
         if search_term:
-            count_query += q.GET_EMPLOYEES_COUNT_SEARCH  # !!!
-            count_params = {"search_term": f"%{search_term}%"}
+            count_query += q.GET_EMPLOYEES_COUNT_SEARCH
+            count_params["search_term"] = f"%{search_term}%"
 
         log.debug(
             f"Запрос для подсчета количества: {count_query}, параметры: {count_params}")
-        total_rows = self.db.fetch_one(count_query, count_params)[0]
+        count_result = self.db.fetch_one(count_query, count_params)
+        total_rows = count_result[0] if count_result else 0
+        # ---------------------------------------------------------
+
         log.debug(
             f"get_employees: общее количество строк: {total_rows}, получено данных {len(data) if data else 0}")
-
         return data, total_rows
 
     def get_employee_by_personnel_number(self, personnel_number):
@@ -97,3 +110,84 @@ class EmployeeRepository:  # !!! название класса
             "SELECT 1 FROM Employees WHERE PersonnelNumber = ?", (personnel_number,))
         log.debug(f"Результат проверки: {result is not None}")
         return result is not None
+
+    def get_active_employee_count(self):
+        """Возвращает количество работающих сотрудников."""
+        log.debug("Запрос количества работающих сотрудников")
+        query = "SELECT COUNT(PersonnelNumber) FROM Employees WHERE StateID = (SELECT ID FROM States WHERE StateName = 'Работает')"
+        result = self.db.fetch_one(query)
+        count = result[0] if result else 0
+        log.debug(f"Найдено работающих сотрудников: {count}")
+        return count
+
+    def get_employees_count_by_department(self):
+        """Возвращает список кортежей (Название отдела, Количество сотрудников) для работающих."""
+        log.debug("Запрос распределения сотрудников по отделам")
+        query = """
+            SELECT D.Name, COUNT(E.PersonnelNumber)
+            FROM Employees E
+            JOIN Departments D ON E.DepartmentID = D.ID
+            WHERE E.StateID = (SELECT ID FROM States WHERE StateName = 'Работает')
+            GROUP BY D.Name
+            ORDER BY COUNT(E.PersonnelNumber) DESC;
+        """
+        result = self.db.fetch_all(query)
+        if result is None:
+            log.warning("Не удалось получить распределение по отделам.")
+            return []
+        log.debug(f"Получено распределение по {len(result)} отделам.")
+        return result
+
+    def get_employees_count_by_position(self, limit=7):
+        """Возвращает топ N должностей по количеству работающих сотрудников."""
+        log.debug(f"Запрос топ-{limit} должностей по количеству сотрудников")
+        query = f"""
+            SELECT P.Name, COUNT(E.PersonnelNumber) as EmpCount
+            FROM Employees E
+            JOIN Positions P ON E.PositionID = P.ID
+            WHERE E.StateID = (SELECT ID FROM States WHERE StateName = 'Работает')
+            GROUP BY P.Name
+            ORDER BY EmpCount DESC
+            LIMIT ?;
+        """  # Используем f-строку для limit, но сам limit передаем параметром
+        result = self.db.fetch_all(
+            query, (limit,))  # Передаем limit как параметр
+        if result is None:
+            log.warning("Не удалось получить распределение по должностям.")
+            return []
+        log.debug(f"Получено топ-{len(result)} должностей.")
+        return result
+
+    def get_active_employee_birth_dates(self):
+        """Возвращает список дат рождения (строки 'YYYY-MM-DD') работающих сотрудников."""
+        log.debug("Запрос дат рождения работающих сотрудников")
+        query = """
+            SELECT BirthDate FROM Employees
+            WHERE StateID = (SELECT ID FROM States WHERE StateName = 'Работает')
+            AND BirthDate IS NOT NULL AND BirthDate != '';
+        """
+        result = self.db.fetch_all(query)
+        if result is None:
+            log.warning("Не удалось получить даты рождения.")
+            return []
+        birth_dates = [row[0] for row in result]
+        log.debug(f"Получено {len(birth_dates)} дат рождения.")
+        return birth_dates
+
+    def get_gender_distribution(self):
+        """Возвращает список кортежей (Пол, Количество сотрудников) для работающих."""
+        log.debug("Запрос гендерного распределения сотрудников")
+        query = """
+            SELECT G.GenderName, COUNT(E.PersonnelNumber)
+            FROM Employees E
+            JOIN Genders G ON E.GenderID = G.ID
+            WHERE E.StateID = (SELECT ID FROM States WHERE StateName = 'Работает')
+            GROUP BY G.GenderName
+            ORDER BY COUNT(E.PersonnelNumber) DESC;
+        """
+        result = self.db.fetch_all(query)
+        if result is None:
+            log.warning("Не удалось получить гендерное распределение.")
+            return []
+        log.debug(f"Получено гендерное распределение: {result}")
+        return result

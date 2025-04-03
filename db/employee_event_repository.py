@@ -2,6 +2,7 @@
 import logging
 from db.database import Database
 import db.queries as q
+import datetime
 
 log = logging.getLogger(__name__)
 
@@ -112,3 +113,26 @@ class EmployeeEventRepository:
         processed = [tuple("" if item is None else item for item in row)
                      for row in result]
         return processed
+
+    def get_event_count_last_days(self, event_name, days=30):
+        """Возвращает количество указанных событий за последние N дней."""
+        log.debug(
+            f"Запрос количества событий '{event_name}' за последние {days} дней")
+        end_date = datetime.date.today()
+        # Включая сегодняшний день
+        start_date = end_date - datetime.timedelta(days=days-1)
+        start_date_str = start_date.strftime('%Y-%m-%d')
+        end_date_str = end_date.strftime('%Y-%m-%d')
+
+        query = """
+            SELECT COUNT(EE.ID)
+            FROM EmployeeEvents EE
+            JOIN Events EV ON EE.EventID = EV.ID
+            WHERE EV.EventName = ?
+            AND EE.EventDate BETWEEN ? AND ?;
+        """
+        result = self.db.fetch_one(
+            query, (event_name, start_date_str, end_date_str))
+        count = result[0] if result else 0
+        log.debug(f"Найдено событий '{event_name}' за {days} дней: {count}")
+        return count

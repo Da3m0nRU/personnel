@@ -245,3 +245,50 @@ GET_RAW_ABSENCE_DATA_FOR_SUMMATION = """
     -- WHERE E.StateID = (SELECT ID FROM States WHERE StateName = 'Работает') -- ? Нужно ли только для работающих? ТЗ не уточняет. Пока оставим для всех.
     ORDER BY A.EmployeePersonnelNumber, A.AbsenceDate; -- Сортировка для удобства обработки
 """
+
+# --- Пользователи ---
+GET_USERS_BASE = """
+    SELECT
+        U.ID,                   -- 0: ID пользователя (для выбора)
+        U.Login,                -- 1: Логин
+        U.Password,             -- 2: Хеш пароля
+        -- Получаем ФИО или Таб.номер сотрудника, если связан
+        COALESCE(E.LastName || ' ' || E.FirstName || COALESCE(' ' || E.MiddleName, ''), U.EmployeePersonnelNumber, 'Не связан') AS EmployeeInfo, -- 3: Инфо о сотруднике
+        R.RoleName,             -- 4: Название роли
+        U.Email                 -- 5: Email
+    FROM Users AS U
+    JOIN Roles AS R ON U.RoleID = R.ID
+    LEFT JOIN Employees AS E ON U.EmployeePersonnelNumber = E.PersonnelNumber -- LEFT JOIN, т.к. сотрудник может быть не связан
+    WHERE 1=1
+"""
+GET_USERS_SEARCH = """
+    AND (U.Login LIKE :search_term OR U.Email LIKE :search_term OR R.RoleName LIKE :search_term
+         OR E.LastName LIKE :search_term OR E.FirstName LIKE :search_term OR U.EmployeePersonnelNumber LIKE :search_term)
+"""
+GET_USERS_ORDER_BY = " ORDER BY U.Login"
+
+GET_USERS_COUNT_BASE = """
+    SELECT COUNT(U.ID)
+    FROM Users AS U
+    JOIN Roles AS R ON U.RoleID = R.ID
+    LEFT JOIN Employees AS E ON U.EmployeePersonnelNumber = E.PersonnelNumber
+    WHERE 1=1
+"""
+GET_USERS_COUNT_SEARCH = GET_USERS_SEARCH  # Условия поиска те же
+
+GET_USER_BY_ID = "SELECT ID, Login, Password, EmployeePersonnelNumber, RoleID, Email FROM Users WHERE ID = ?"
+GET_USER_BY_LOGIN_FOR_AUTH = "SELECT ID, Password, RoleID FROM Users WHERE Login = ?"  # Для входа
+
+INSERT_USER = """
+    INSERT INTO Users (Login, Password, EmployeePersonnelNumber, RoleID, Email)
+    VALUES (?, ?, ?, ?, ?)
+"""
+UPDATE_USER_WITH_PASSWORD = """
+    UPDATE Users SET RoleID = ?, EmployeePersonnelNumber = ?, Email = ?, Password = ?
+    WHERE ID = ?
+"""
+UPDATE_USER_WITHOUT_PASSWORD = """
+    UPDATE Users SET RoleID = ?, EmployeePersonnelNumber = ?, Email = ?
+    WHERE ID = ?
+"""
+DELETE_USER = "DELETE FROM Users WHERE ID = ?"
