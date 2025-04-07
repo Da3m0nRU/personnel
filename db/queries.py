@@ -1,6 +1,21 @@
-# db/queries.py
+"""
+Модуль содержит константы с SQL-запросами для работы с базой данных АИС "Кадры".
 
-# --- Сотрудники (Employees) ---
+Запросы сгруппированы по логическим блокам (сущностям):
+- Сотрудники (Employees)
+- Справочники (Genders, Positions, Departments, States, Events, Roles)
+- Кадровые события (EmployeeEvents)
+- Отсутствия (Absences)
+- Пользователи (Users)
+- Отчеты (Reports)
+
+Имена констант отражают назначение конкретного SQL-запроса.
+"""
+
+# ==============================================================================
+# Сотрудники (Employees)
+# ==============================================================================
+
 GET_EMPLOYEES = """
     SELECT
         E.PersonnelNumber, E.LastName, E.FirstName, E.MiddleName, E.BirthDate,
@@ -25,7 +40,7 @@ GET_EMPLOYEES_COUNT = """
     JOIN Departments AS D ON E.DepartmentID = D.ID JOIN States AS S ON E.StateID = S.ID
     WHERE 1=1
 """
-GET_EMPLOYEES_COUNT_SEARCH = GET_EMPLOYEES_SEARCH  # Reuses the search condition
+GET_EMPLOYEES_COUNT_SEARCH = GET_EMPLOYEES_SEARCH
 
 INSERT_EMPLOYEE = """
     INSERT INTO Employees (PersonnelNumber, LastName, FirstName, MiddleName, BirthDate,
@@ -107,21 +122,25 @@ GET_ACTIVE_EMPLOYEES_FOR_LINKING = """
     ORDER BY LastName, FirstName;
 """
 
-# --- Справочники (Genders, Positions, Departments, States, Events, Roles) ---
+# ==============================================================================
+# Справочники (Genders, Positions, Departments, States, Events, Roles)
+# ==============================================================================
+
+# --- Справочник: Пол (Genders) ---
 GET_GENDERS = "SELECT ID, GenderName FROM Genders"
 GET_GENDER_ID = "SELECT ID FROM Genders WHERE GenderName = ?"
 
+# --- Справочник: Должности (Positions) ---
 GET_ALL_POSITIONS = "SELECT ID, Name FROM Positions"
-# Note: Used by name in repo, keep name
 GET_POSITION_ID = "SELECT ID FROM Positions WHERE Name = ?"
-GET_POSITIONS = "SELECT Name FROM Positions"  # Used for simple list
+GET_POSITIONS = "SELECT Name FROM Positions"
 
+# --- Справочник: Состояния (States) ---
 GET_STATES = "SELECT ID, StateName FROM States"
-# Note: Used by name in repo, keep name
 GET_STATE_ID = "SELECT ID FROM States WHERE StateName = ?"
 
+# --- Справочник: Отделы (Departments) ---
 GET_DEPARTMENTS = "SELECT ID, Name FROM Departments"
-# Note: Used by name in repo, keep name
 GET_DEPARTMENT_ID_BY_NAME = "SELECT ID FROM Departments WHERE Name = ?"
 GET_DEPARTMENTS_FOR_POSITION = """
     SELECT D.Name FROM Departments AS D
@@ -129,15 +148,20 @@ GET_DEPARTMENTS_FOR_POSITION = """
     WHERE PD.PositionID = ?
 """
 
-GET_ALL_EVENTS = "SELECT ID, EventName FROM Events"  # Assuming this might be needed
+# --- Справочник: Кадровые события (Events) ---
+GET_ALL_EVENTS = "SELECT ID, EventName FROM Events"
 GET_EVENT_ID_BY_NAME = "SELECT ID FROM Events WHERE EventName = ?"
 
+# --- Справочник: Роли пользователей (Roles) ---
 GET_ALL_ROLES_ORDERED = "SELECT ID, RoleName FROM Roles ORDER BY RoleName"
 GET_ROLE_ID_BY_NAME = "SELECT ID FROM Roles WHERE RoleName = ?"
 GET_ROLE_NAME_BY_ID = "SELECT RoleName FROM Roles WHERE ID = ?"
 GET_ADMIN_ROLE_ID = "SELECT ID FROM Roles WHERE RoleName = 'Администратор'"
 
-# --- Кадровые события (EmployeeEvents) ---
+# ==============================================================================
+# Кадровые события (EmployeeEvents)
+# ==============================================================================
+
 GET_EMPLOYEE_EVENTS = """
     SELECT EE.EventDate, EV.EventName, E.PersonnelNumber,
            E.LastName || ' ' || E.FirstName || COALESCE(' ' || E.MiddleName, '') AS FullName,
@@ -160,7 +184,7 @@ GET_EMPLOYEE_EVENTS_COUNT = """
     LEFT JOIN Positions AS P ON EE.PositionID = P.ID LEFT JOIN Departments AS D ON EE.DepartmentID = D.ID
     WHERE 1=1
 """
-GET_EMPLOYEE_EVENTS_COUNT_SEARCH = GET_EMPLOYEE_EVENTS_SEARCH  # Reuses search condition
+GET_EMPLOYEE_EVENTS_COUNT_SEARCH = GET_EMPLOYEE_EVENTS_SEARCH
 
 INSERT_EMPLOYEE_EVENT = """
     INSERT INTO EmployeeEvents (EmployeePersonnelNumber, EventID, EventDate, DepartmentID, PositionID, Reason)
@@ -173,16 +197,20 @@ GET_EVENT_COUNT_LAST_DAYS = """
     WHERE EV.EventName = ?
     AND EE.EventDate BETWEEN ? AND ?;
 """
-# --- Отсутствия (Absences) ---
+
+# ==============================================================================
+# Отсутствия (Absences)
+# ==============================================================================
+
 GET_ABSENCES = """
     SELECT
-        A.ID, -- ID is the FIRST column
+        A.ID, -- ID всегда первый столбец для совместимости
         E.PersonnelNumber,
         E.LastName || ' ' || E.FirstName || COALESCE(' ' || E.MiddleName, '') AS FullName,
         A.AbsenceDate,
         CASE A.FullDay WHEN 1 THEN 'Да' ELSE 'Нет' END AS IsFullDay,
-        A.StartingTime AS StartTime, -- Keep original name
-        A.EndingTime AS EndTime,     -- Keep original name
+        A.StartingTime AS StartTime,
+        A.EndingTime AS EndTime,
         A.Reason
     FROM Absences AS A
     JOIN Employees AS E ON A.EmployeePersonnelNumber = E.PersonnelNumber
@@ -201,7 +229,7 @@ GET_ABSENCES_COUNT = """
     JOIN Employees AS E ON A.EmployeePersonnelNumber = E.PersonnelNumber
     WHERE 1=1
 """
-GET_ABSENCES_COUNT_SEARCH = GET_ABSENCES_SEARCH  # Reuses search condition
+GET_ABSENCES_COUNT_SEARCH = GET_ABSENCES_SEARCH
 
 INSERT_ABSENCE = """
     INSERT INTO Absences (EmployeePersonnelNumber, AbsenceDate, FullDay, StartingTime, EndingTime, Reason, ScheduleID)
@@ -228,13 +256,16 @@ GET_WORKING_HOURS_FOR_POSITION_AND_DAY = """
     WHERE S.PositionID = ? AND S.DayOfWeekID = ? LIMIT 1
 """
 
-# --- Пользователи (Users) ---
+# ==============================================================================
+# Пользователи (Users)
+# ==============================================================================
+
 GET_USERS_BASE = """
     SELECT
         U.ID,                   -- 0: ID
         U.Login,                -- 1: Login
         U.Password,             -- 2: Password Hash
-        COALESCE(E.LastName || ' ' || E.FirstName || COALESCE(' ' || E.MiddleName, ''), U.EmployeePersonnelNumber, 'Не связан') AS EmployeeInfo, -- 3: Employee Info
+        COALESCE(E.LastName || ' ' || E.FirstName || COALESCE(' ' || E.MiddleName, ''), U.EmployeePersonnelNumber, 'Не связан') AS EmployeeInfo, -- 3: Employee Info or PN
         R.RoleName,             -- 4: Role Name
         U.Email                 -- 5: Email
     FROM Users AS U
@@ -255,10 +286,9 @@ GET_USERS_COUNT_BASE = """
     LEFT JOIN Employees AS E ON U.EmployeePersonnelNumber = E.PersonnelNumber
     WHERE 1=1
 """
-GET_USERS_COUNT_SEARCH = GET_USERS_SEARCH  # Reuses search condition
+GET_USERS_COUNT_SEARCH = GET_USERS_SEARCH
 
 GET_USER_BY_ID = "SELECT ID, Login, Password, EmployeePersonnelNumber, RoleID, Email FROM Users WHERE ID = ?"
-# For authentication
 GET_USER_BY_LOGIN_FOR_AUTH = "SELECT ID, Password, RoleID FROM Users WHERE Login = ?"
 GET_USER_ROLE_ID_BY_USER_ID = "SELECT RoleID FROM Users WHERE ID = ?"
 
@@ -285,8 +315,9 @@ GET_ADMIN_COUNT = """
     WHERE R.RoleName = 'Администратор'
 """
 
-
-# --- Отчеты (Reports) ---
+# ==============================================================================
+# Отчеты (Reports)
+# ==============================================================================
 
 # --- Отчет по увольнениям ---
 GET_DISMISSAL_COUNT_BY_MONTH = """
