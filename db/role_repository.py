@@ -1,6 +1,7 @@
 # db/role_repository.py
 import logging
 from db.database import Database
+import db.queries as q
 
 log = logging.getLogger(__name__)
 
@@ -32,7 +33,7 @@ class RoleRepository:
             int | None: ID роли, если найдена, иначе None.
         """
         log.debug(f"Запрос ID для роли: '{role_name}'")
-        query = "SELECT ID FROM Roles WHERE RoleName = ?"
+        query = q.GET_ROLE_ID_BY_NAME
         result = self.db.fetch_one(query, (role_name,))
         if result:
             role_id = result[0]
@@ -53,7 +54,7 @@ class RoleRepository:
             str | None: Название роли, если найдена, иначе None.
         """
         log.debug(f"Запрос названия роли по ID={role_id}")
-        query = "SELECT RoleName FROM Roles WHERE ID = ?"
+        query = q.GET_ROLE_NAME_BY_ID
         result = self.db.fetch_one(query, (role_id,))
         if result:
             role_name = result[0]
@@ -73,7 +74,7 @@ class RoleRepository:
                                    Возвращает пустой список в случае ошибки или отсутствия ролей.
         """
         log.debug("Запрос списка всех ролей")
-        query = "SELECT ID, RoleName FROM Roles ORDER BY RoleName"
+        query = q.GET_ALL_ROLES_ORDERED
         result = self.db.fetch_all(query)
         if result is None:
             log.warning(

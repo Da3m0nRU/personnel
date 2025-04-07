@@ -4,6 +4,7 @@ from config import *
 import datetime
 from tkinter import messagebox
 import logging
+import db.queries as q
 
 log = logging.getLogger(__name__)
 
@@ -132,5 +133,5 @@ class ConfirmEventDialog(ctk.CTkToplevel):
         print(
             f"Type of self.employee_event_repository.db: {type(self.employee_event_repository.db)}")
         event = self.employee_event_repository.db.fetch_one(
-            "SELECT ID FROM Events WHERE EventName = ?", (event_name,))
+            q.GET_EVENT_ID_BY_NAME, (event_name,))
         return event[0] if event else None

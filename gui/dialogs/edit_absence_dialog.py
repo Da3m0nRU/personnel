@@ -6,6 +6,7 @@ from tkinter import messagebox
 import re
 import datetime
 import calendar
+import db.queries as q
 
 log = logging.getLogger(__name__)
 
@@ -152,7 +153,7 @@ class EditAbsenceDialog(ctk.CTkToplevel):
         # 1. Сотрудник (PN сохраняем, ФИО показываем)
         self._selected_personnel_number = self.original_data[1]
         emp_info = self.repository.db.fetch_one(
-            "SELECT LastName||' '||FirstName||COALESCE(' '||MiddleName,'') FROM Employees WHERE PersonnelNumber = ?", (self._selected_personnel_number,))
+            q.GET_EMPLOYEE_FIO_BY_PN, (self._selected_personnel_number,))
         emp_name_display = f"{emp_info[0]} ({self._selected_personnel_number})" if emp_info else f"({self._selected_personnel_number})"
         self.employee_label.configure(text=emp_name_display)
 

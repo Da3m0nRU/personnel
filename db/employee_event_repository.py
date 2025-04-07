@@ -124,13 +124,8 @@ class EmployeeEventRepository:
         start_date_str = start_date.strftime('%Y-%m-%d')
         end_date_str = end_date.strftime('%Y-%m-%d')
 
-        query = """
-            SELECT COUNT(EE.ID)
-            FROM EmployeeEvents EE
-            JOIN Events EV ON EE.EventID = EV.ID
-            WHERE EV.EventName = ?
-            AND EE.EventDate BETWEEN ? AND ?;
-        """
+        query = q.GET_EVENT_COUNT_LAST_DAYS
+
         result = self.db.fetch_one(
             query, (event_name, start_date_str, end_date_str))
         count = result[0] if result else 0

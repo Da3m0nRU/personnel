@@ -1,6 +1,6 @@
 # db/queries.py
 
-# --- Сотрудники ---
+# --- Сотрудники (Employees) ---
 GET_EMPLOYEES = """
     SELECT
         E.PersonnelNumber, E.LastName, E.FirstName, E.MiddleName, E.BirthDate,
@@ -18,13 +18,15 @@ GET_EMPLOYEES_SEARCH = """
         P.Name LIKE :search_term OR D.Name LIKE :search_term OR S.StateName LIKE :search_term)
 """
 GET_EMPLOYEES_ORDER_BY = " ORDER BY E.PersonnelNumber"
+
 GET_EMPLOYEES_COUNT = """
     SELECT COUNT(*) FROM Employees AS E
     JOIN Genders AS G ON E.GenderID = G.ID JOIN Positions AS P ON E.PositionID = P.ID
     JOIN Departments AS D ON E.DepartmentID = D.ID JOIN States AS S ON E.StateID = S.ID
     WHERE 1=1
 """
-GET_EMPLOYEES_COUNT_SEARCH = GET_EMPLOYEES_SEARCH
+GET_EMPLOYEES_COUNT_SEARCH = GET_EMPLOYEES_SEARCH  # Reuses the search condition
+
 INSERT_EMPLOYEE = """
     INSERT INTO Employees (PersonnelNumber, LastName, FirstName, MiddleName, BirthDate,
                           GenderID, PositionID, DepartmentID, StateID)
@@ -36,6 +38,7 @@ UPDATE_EMPLOYEE = """
     WHERE PersonnelNumber = ?
 """
 DELETE_EMPLOYEE = "DELETE FROM Employees WHERE PersonnelNumber = ?"
+
 GET_EMPLOYEE_BY_PERSONNEL_NUMBER = """
     SELECT E.PersonnelNumber, E.LastName, E.FirstName, E.MiddleName, E.BirthDate, G.GenderName,
            P.Name AS PositionName, D.Name AS DepartmentName, S.StateName
@@ -44,23 +47,97 @@ GET_EMPLOYEE_BY_PERSONNEL_NUMBER = """
     JOIN Departments AS D ON E.DepartmentID = D.ID JOIN States AS S ON E.StateID = S.ID
     WHERE E.PersonnelNumber = ?
 """
-# --- Справочники ---
+GET_EMPLOYEE_FIO_BY_PN = """
+    SELECT LastName || ' ' || FirstName || COALESCE(' ' || MiddleName, '')
+    FROM Employees WHERE PersonnelNumber = ?
+"""
+GET_EMPLOYEE_FIO_MAP_DATA = """
+    SELECT PersonnelNumber, LastName || ' ' || FirstName || COALESCE(' ' || MiddleName, '')
+    FROM Employees
+"""
+GET_EMPLOYEE_POSITION_ID_BY_PN = """
+    SELECT PositionID FROM Employees WHERE PersonnelNumber = ?
+"""
+CHECK_PERSONNEL_NUMBER_EXISTS = """
+    SELECT 1 FROM Employees WHERE PersonnelNumber = ?
+"""
+GET_ACTIVE_EMPLOYEE_COUNT = """
+    SELECT COUNT(PersonnelNumber) FROM Employees
+    WHERE StateID = (SELECT ID FROM States WHERE StateName = 'Работает')
+"""
+GET_EMPLOYEES_COUNT_BY_DEPARTMENT = """
+    SELECT D.Name, COUNT(E.PersonnelNumber)
+    FROM Employees E
+    JOIN Departments D ON E.DepartmentID = D.ID
+    WHERE E.StateID = (SELECT ID FROM States WHERE StateName = 'Работает')
+    GROUP BY D.Name
+    ORDER BY COUNT(E.PersonnelNumber) DESC;
+"""
+GET_EMPLOYEES_COUNT_BY_POSITION_TOP_N = """
+    SELECT P.Name, COUNT(E.PersonnelNumber) as EmpCount
+    FROM Employees E
+    JOIN Positions P ON E.PositionID = P.ID
+    WHERE E.StateID = (SELECT ID FROM States WHERE StateName = 'Работает')
+    GROUP BY P.Name
+    ORDER BY EmpCount DESC
+    LIMIT ?;
+"""
+GET_ACTIVE_EMPLOYEE_BIRTH_DATES = """
+    SELECT BirthDate FROM Employees
+    WHERE StateID = (SELECT ID FROM States WHERE StateName = 'Работает')
+    AND BirthDate IS NOT NULL AND BirthDate != '';
+"""
+GET_GENDER_DISTRIBUTION = """
+    SELECT G.GenderName, COUNT(E.PersonnelNumber)
+    FROM Employees E
+    JOIN Genders G ON E.GenderID = G.ID
+    WHERE E.StateID = (SELECT ID FROM States WHERE StateName = 'Работает')
+    GROUP BY G.GenderName
+    ORDER BY COUNT(E.PersonnelNumber) DESC;
+"""
+GET_EMPLOYEE_LIST_FOR_ABSENCE = """
+    SELECT PersonnelNumber, LastName || ' ' || FirstName || COALESCE(' ' || MiddleName, '') AS FullName
+    FROM Employees WHERE StateID = (SELECT ID FROM States WHERE StateName = 'Работает')
+    ORDER BY LastName, FirstName
+"""
+GET_ACTIVE_EMPLOYEES_FOR_LINKING = """
+    SELECT PersonnelNumber, LastName || ' ' || FirstName || COALESCE(' ' || MiddleName, '') AS FullName
+    FROM Employees
+    WHERE StateID = (SELECT ID FROM States WHERE StateName = 'Работает')
+    ORDER BY LastName, FirstName;
+"""
+
+# --- Справочники (Genders, Positions, Departments, States, Events, Roles) ---
 GET_GENDERS = "SELECT ID, GenderName FROM Genders"
 GET_GENDER_ID = "SELECT ID FROM Genders WHERE GenderName = ?"
+
 GET_ALL_POSITIONS = "SELECT ID, Name FROM Positions"
+# Note: Used by name in repo, keep name
 GET_POSITION_ID = "SELECT ID FROM Positions WHERE Name = ?"
-GET_POSITIONS = "SELECT Name FROM Positions"
+GET_POSITIONS = "SELECT Name FROM Positions"  # Used for simple list
+
 GET_STATES = "SELECT ID, StateName FROM States"
+# Note: Used by name in repo, keep name
 GET_STATE_ID = "SELECT ID FROM States WHERE StateName = ?"
+
 GET_DEPARTMENTS = "SELECT ID, Name FROM Departments"
-GET_DEPARTMENT_BY_NAME = "SELECT ID FROM Departments WHERE Name = ?"
+# Note: Used by name in repo, keep name
+GET_DEPARTMENT_ID_BY_NAME = "SELECT ID FROM Departments WHERE Name = ?"
 GET_DEPARTMENTS_FOR_POSITION = """
     SELECT D.Name FROM Departments AS D
     INNER JOIN PositionDepartments AS PD ON D.ID = PD.DepartmentID
     WHERE PD.PositionID = ?
 """
 
-# --- Кадровые события ---
+GET_ALL_EVENTS = "SELECT ID, EventName FROM Events"  # Assuming this might be needed
+GET_EVENT_ID_BY_NAME = "SELECT ID FROM Events WHERE EventName = ?"
+
+GET_ALL_ROLES_ORDERED = "SELECT ID, RoleName FROM Roles ORDER BY RoleName"
+GET_ROLE_ID_BY_NAME = "SELECT ID FROM Roles WHERE RoleName = ?"
+GET_ROLE_NAME_BY_ID = "SELECT RoleName FROM Roles WHERE ID = ?"
+GET_ADMIN_ROLE_ID = "SELECT ID FROM Roles WHERE RoleName = 'Администратор'"
+
+# --- Кадровые события (EmployeeEvents) ---
 GET_EMPLOYEE_EVENTS = """
     SELECT EE.EventDate, EV.EventName, E.PersonnelNumber,
            E.LastName || ' ' || E.FirstName || COALESCE(' ' || E.MiddleName, '') AS FullName,
@@ -76,28 +153,36 @@ GET_EMPLOYEE_EVENTS_SEARCH = """
         P.Name LIKE :search_term OR D.Name LIKE :search_term OR EE.Reason LIKE :search_term)
 """
 GET_EMPLOYEE_EVENTS_ORDER_BY = " ORDER BY EE.EventDate DESC, EE.ID DESC"
+
 GET_EMPLOYEE_EVENTS_COUNT = """
     SELECT COUNT(EE.ID) FROM EmployeeEvents AS EE
     JOIN Events AS EV ON EE.EventID = EV.ID JOIN Employees AS E ON EE.EmployeePersonnelNumber = E.PersonnelNumber
     LEFT JOIN Positions AS P ON EE.PositionID = P.ID LEFT JOIN Departments AS D ON EE.DepartmentID = D.ID
     WHERE 1=1
 """
-GET_EMPLOYEE_EVENTS_COUNT_SEARCH = GET_EMPLOYEE_EVENTS_SEARCH
+GET_EMPLOYEE_EVENTS_COUNT_SEARCH = GET_EMPLOYEE_EVENTS_SEARCH  # Reuses search condition
+
 INSERT_EMPLOYEE_EVENT = """
     INSERT INTO EmployeeEvents (EmployeePersonnelNumber, EventID, EventDate, DepartmentID, PositionID, Reason)
     VALUES (?, ?, ?, ?, ?, ?)
 """
-
-# --- Отсутствия ---
+GET_EVENT_COUNT_LAST_DAYS = """
+    SELECT COUNT(EE.ID)
+    FROM EmployeeEvents EE
+    JOIN Events EV ON EE.EventID = EV.ID
+    WHERE EV.EventName = ?
+    AND EE.EventDate BETWEEN ? AND ?;
+"""
+# --- Отсутствия (Absences) ---
 GET_ABSENCES = """
     SELECT
-        A.ID, -- !!! ID добавлен ПЕРВЫМ СТОЛБЦОМ !!!
+        A.ID, -- ID is the FIRST column
         E.PersonnelNumber,
         E.LastName || ' ' || E.FirstName || COALESCE(' ' || E.MiddleName, '') AS FullName,
         A.AbsenceDate,
         CASE A.FullDay WHEN 1 THEN 'Да' ELSE 'Нет' END AS IsFullDay,
-        A.StartingTime AS StartTime, -- Убрали COALESCE
-        A.EndingTime AS EndTime,     -- Убрали COALESCE
+        A.StartingTime AS StartTime, -- Keep original name
+        A.EndingTime AS EndTime,     -- Keep original name
         A.Reason
     FROM Absences AS A
     JOIN Employees AS E ON A.EmployeePersonnelNumber = E.PersonnelNumber
@@ -110,17 +195,18 @@ GET_ABSENCES_SEARCH = """
          A.StartingTime LIKE :search_term OR A.EndingTime LIKE :search_term OR A.Reason LIKE :search_term)
 """
 GET_ABSENCES_ORDER_BY = " ORDER BY A.AbsenceDate DESC, E.LastName, E.FirstName"
+
 GET_ABSENCES_COUNT = """
     SELECT COUNT(A.ID) FROM Absences AS A
     JOIN Employees AS E ON A.EmployeePersonnelNumber = E.PersonnelNumber
     WHERE 1=1
 """
-GET_ABSENCES_COUNT_SEARCH = GET_ABSENCES_SEARCH
+GET_ABSENCES_COUNT_SEARCH = GET_ABSENCES_SEARCH  # Reuses search condition
+
 INSERT_ABSENCE = """
     INSERT INTO Absences (EmployeePersonnelNumber, AbsenceDate, FullDay, StartingTime, EndingTime, Reason, ScheduleID)
     VALUES (?, ?, ?, ?, ?, ?, ?)
 """
-# --- НОВЫЕ для CRUD отсутствий ---
 GET_ABSENCE_BY_ID = """
     SELECT ID, EmployeePersonnelNumber, AbsenceDate, FullDay, StartingTime, EndingTime, Reason, ScheduleID
     FROM Absences WHERE ID = ?
@@ -131,11 +217,9 @@ UPDATE_ABSENCE = """
     WHERE ID = ?
 """
 DELETE_ABSENCE = "DELETE FROM Absences WHERE ID = ?"
-# ------------------------------
-GET_EMPLOYEE_LIST_FOR_ABSENCE = """
-    SELECT PersonnelNumber, LastName || ' ' || FirstName || COALESCE(' ' || MiddleName, '') AS FullName
-    FROM Employees WHERE StateID = (SELECT ID FROM States WHERE StateName = 'Работает')
-    ORDER BY LastName, FirstName
+
+CHECK_ABSENCE_EXISTS_BY_PN_DATE = """
+    SELECT 1 FROM Absences WHERE EmployeePersonnelNumber = ? AND AbsenceDate = ?
 """
 GET_WORKING_HOURS_FOR_POSITION_AND_DAY = """
     SELECT S.ID AS ScheduleID, WH.StartingTime, WH.EndingTime
@@ -144,121 +228,18 @@ GET_WORKING_HOURS_FOR_POSITION_AND_DAY = """
     WHERE S.PositionID = ? AND S.DayOfWeekID = ? LIMIT 1
 """
 
-# --- Отчеты ---
-
-# Отчет по увольнениям: Данные для ГРАФИКА
-# Считаем количество увольнений по месяцам в заданном периоде
-# Используем substr для извлечения 'ГГГГ-ММ'
-GET_DISMISSAL_COUNT_BY_MONTH = """
-    SELECT
-        substr(EE.EventDate, 1, 7) AS DismissalMonth, -- Получаем 'ГГГГ-ММ'
-        COUNT(EE.ID) AS DismissalCount
-    FROM EmployeeEvents AS EE
-    JOIN Events AS EV ON EE.EventID = EV.ID
-    WHERE EV.EventName = 'Увольнение' -- Только события увольнения
-      AND EE.EventDate BETWEEN ? AND ?   -- В заданном диапазоне дат (включительно)
-    GROUP BY DismissalMonth           -- Группируем по месяцу
-    ORDER BY DismissalMonth ASC;      -- Сортируем по месяцу
-"""
-
-# Отчет по увольнениям: Данные для ТАБЛИЦЫ
-# Получаем детальный список уволенных в заданном периоде
-GET_DISMISSED_EMPLOYEES_DETAILS = """
-    SELECT
-        E.PersonnelNumber,
-        E.LastName || ' ' || E.FirstName || COALESCE(' ' || E.MiddleName, '') AS FullName,
-        P.Name AS PositionName,
-        D.Name AS DepartmentName,
-        -- Ищем дату приема (последнее событие 'Прием' ДО даты увольнения)
-        (SELECT MAX(EventDate)
-         FROM EmployeeEvents AS EE_Hire
-         JOIN Events AS EV_Hire ON EE_Hire.EventID = EV_Hire.ID
-         WHERE EE_Hire.EmployeePersonnelNumber = E.PersonnelNumber
-           AND EV_Hire.EventName = 'Прием'
-           AND EE_Hire.EventDate <= EE_Dismiss.EventDate -- Не позже даты увольнения
-        ) AS HireDate,
-        EE_Dismiss.EventDate AS DismissalDate,
-        EE_Dismiss.Reason AS DismissalReason
-    FROM EmployeeEvents AS EE_Dismiss
-    JOIN Employees AS E ON EE_Dismiss.EmployeePersonnelNumber = E.PersonnelNumber
-    JOIN Events AS EV ON EE_Dismiss.EventID = EV.ID
-    LEFT JOIN Positions AS P ON E.PositionID = P.ID   -- Должность на момент увольнения (из Employees)
-    LEFT JOIN Departments AS D ON E.DepartmentID = D.ID -- Отдел на момент увольнения (из Employees)
-    WHERE EV.EventName = 'Увольнение'
-      AND EE_Dismiss.EventDate BETWEEN ? AND ? -- В заданном диапазоне
-    ORDER BY EE_Dismiss.EventDate DESC; -- Сначала последние уволенные
-"""
-
-# НОВЫЙ: Отчет по увольнениям: Данные для ГРАФИКА (по дням)
-GET_DISMISSAL_COUNT_BY_DAY = """
-    SELECT
-        EE.EventDate AS DismissalDay, -- Дата как есть
-        COUNT(EE.ID) AS DismissalCount
-    FROM EmployeeEvents AS EE
-    JOIN Events AS EV ON EE.EventID = EV.ID
-    WHERE EV.EventName = 'Увольнение'
-      AND EE.EventDate BETWEEN ? AND ?
-    GROUP BY DismissalDay
-    ORDER BY DismissalDay ASC;
-"""
-
-# НОВЫЙ: Отчет по увольнениям: Данные для ГРАФИКА (по годам)
-GET_DISMISSAL_COUNT_BY_YEAR = """
-    SELECT
-        substr(EE.EventDate, 1, 4) AS DismissalYear, -- Получаем 'ГГГГ'
-        COUNT(EE.ID) AS DismissalCount
-    FROM EmployeeEvents AS EE
-    JOIN Events AS EV ON EE.EventID = EV.ID
-    WHERE EV.EventName = 'Увольнение'
-      AND EE.EventDate BETWEEN ? AND ?
-    GROUP BY DismissalYear
-    ORDER BY DismissalYear ASC;
-"""
-
-GET_ABSENCES_DETAILS_FOR_REPORT = """
-    SELECT
-        EmployeePersonnelNumber,
-        AbsenceDate,
-        FullDay,
-        StartingTime, -- Может быть NULL из старых версий или если не был подставлен
-        EndingTime,   -- Может быть NULL
-        ScheduleID    -- Может быть NULL
-    FROM Absences
-    WHERE AbsenceDate BETWEEN ? AND ?
-    ORDER BY EmployeePersonnelNumber, AbsenceDate; -- Сортируем для возможной доп. логики
-"""
-
-# Запрос для получения ИСХОДНЫХ данных для расчета сумм отсутствий
-GET_RAW_ABSENCE_DATA_FOR_SUMMATION = """
-    SELECT
-        A.EmployeePersonnelNumber, -- 0: Табельный номер
-        E.LastName || ' ' || E.FirstName || COALESCE(' ' || E.MiddleName, '') AS FullName, -- 1: ФИО
-        E.PositionID,             -- 2: ID Должности сотрудника
-        A.AbsenceDate,            -- 3: Дата отсутствия
-        A.FullDay,                -- 4: Флаг полного дня (1 или 0)
-        A.StartingTime,           -- 5: Время начала (ЧЧ:ММ или NULL/пусто)
-        A.EndingTime,             -- 6: Время окончания (ЧЧ:ММ или NULL/пусто)
-        A.ScheduleID              -- 7: ID Графика из записи Absence (может быть NULL)
-    FROM Absences AS A
-    JOIN Employees AS E ON A.EmployeePersonnelNumber = E.PersonnelNumber
-    WHERE A.AbsenceDate BETWEEN ? AND ? -- Фильтр по дате
-    -- WHERE E.StateID = (SELECT ID FROM States WHERE StateName = 'Работает') -- ? Нужно ли только для работающих? ТЗ не уточняет. Пока оставим для всех.
-    ORDER BY A.EmployeePersonnelNumber, A.AbsenceDate; -- Сортировка для удобства обработки
-"""
-
-# --- Пользователи ---
+# --- Пользователи (Users) ---
 GET_USERS_BASE = """
     SELECT
-        U.ID,                   -- 0: ID пользователя (для выбора)
-        U.Login,                -- 1: Логин
-        U.Password,             -- 2: Хеш пароля
-        -- Получаем ФИО или Таб.номер сотрудника, если связан
-        COALESCE(E.LastName || ' ' || E.FirstName || COALESCE(' ' || E.MiddleName, ''), U.EmployeePersonnelNumber, 'Не связан') AS EmployeeInfo, -- 3: Инфо о сотруднике
-        R.RoleName,             -- 4: Название роли
+        U.ID,                   -- 0: ID
+        U.Login,                -- 1: Login
+        U.Password,             -- 2: Password Hash
+        COALESCE(E.LastName || ' ' || E.FirstName || COALESCE(' ' || E.MiddleName, ''), U.EmployeePersonnelNumber, 'Не связан') AS EmployeeInfo, -- 3: Employee Info
+        R.RoleName,             -- 4: Role Name
         U.Email                 -- 5: Email
     FROM Users AS U
     JOIN Roles AS R ON U.RoleID = R.ID
-    LEFT JOIN Employees AS E ON U.EmployeePersonnelNumber = E.PersonnelNumber -- LEFT JOIN, т.к. сотрудник может быть не связан
+    LEFT JOIN Employees AS E ON U.EmployeePersonnelNumber = E.PersonnelNumber
     WHERE 1=1
 """
 GET_USERS_SEARCH = """
@@ -274,10 +255,12 @@ GET_USERS_COUNT_BASE = """
     LEFT JOIN Employees AS E ON U.EmployeePersonnelNumber = E.PersonnelNumber
     WHERE 1=1
 """
-GET_USERS_COUNT_SEARCH = GET_USERS_SEARCH  # Условия поиска те же
+GET_USERS_COUNT_SEARCH = GET_USERS_SEARCH  # Reuses search condition
 
 GET_USER_BY_ID = "SELECT ID, Login, Password, EmployeePersonnelNumber, RoleID, Email FROM Users WHERE ID = ?"
-GET_USER_BY_LOGIN_FOR_AUTH = "SELECT ID, Password, RoleID FROM Users WHERE Login = ?"  # Для входа
+# For authentication
+GET_USER_BY_LOGIN_FOR_AUTH = "SELECT ID, Password, RoleID FROM Users WHERE Login = ?"
+GET_USER_ROLE_ID_BY_USER_ID = "SELECT RoleID FROM Users WHERE ID = ?"
 
 INSERT_USER = """
     INSERT INTO Users (Login, Password, EmployeePersonnelNumber, RoleID, Email)
@@ -292,3 +275,103 @@ UPDATE_USER_WITHOUT_PASSWORD = """
     WHERE ID = ?
 """
 DELETE_USER = "DELETE FROM Users WHERE ID = ?"
+
+CHECK_LOGIN_UNIQUE = "SELECT 1 FROM Users WHERE Login = ?"
+CHECK_LOGIN_UNIQUE_EXCLUDE_ID = "SELECT 1 FROM Users WHERE Login = ? AND ID != ?"
+
+GET_ADMIN_COUNT = """
+    SELECT COUNT(U.ID) FROM Users U
+    JOIN Roles R ON U.RoleID = R.ID
+    WHERE R.RoleName = 'Администратор'
+"""
+
+
+# --- Отчеты (Reports) ---
+
+# --- Отчет по увольнениям ---
+GET_DISMISSAL_COUNT_BY_MONTH = """
+    SELECT
+        substr(EE.EventDate, 1, 7) AS DismissalMonth, -- 'YYYY-MM'
+        COUNT(EE.ID) AS DismissalCount
+    FROM EmployeeEvents AS EE
+    JOIN Events AS EV ON EE.EventID = EV.ID
+    WHERE EV.EventName = 'Увольнение'
+      AND EE.EventDate BETWEEN ? AND ?
+    GROUP BY DismissalMonth
+    ORDER BY DismissalMonth ASC;
+"""
+GET_DISMISSAL_COUNT_BY_DAY = """
+    SELECT
+        EE.EventDate AS DismissalDay, -- 'YYYY-MM-DD'
+        COUNT(EE.ID) AS DismissalCount
+    FROM EmployeeEvents AS EE
+    JOIN Events AS EV ON EE.EventID = EV.ID
+    WHERE EV.EventName = 'Увольнение'
+      AND EE.EventDate BETWEEN ? AND ?
+    GROUP BY DismissalDay
+    ORDER BY DismissalDay ASC;
+"""
+GET_DISMISSAL_COUNT_BY_YEAR = """
+    SELECT
+        substr(EE.EventDate, 1, 4) AS DismissalYear, -- 'YYYY'
+        COUNT(EE.ID) AS DismissalCount
+    FROM EmployeeEvents AS EE
+    JOIN Events AS EV ON EE.EventID = EV.ID
+    WHERE EV.EventName = 'Увольнение'
+      AND EE.EventDate BETWEEN ? AND ?
+    GROUP BY DismissalYear
+    ORDER BY DismissalYear ASC;
+"""
+GET_DISMISSED_EMPLOYEES_DETAILS = """
+    SELECT
+        E.PersonnelNumber,
+        E.LastName || ' ' || E.FirstName || COALESCE(' ' || E.MiddleName, '') AS FullName,
+        P.Name AS PositionName,
+        D.Name AS DepartmentName,
+        (SELECT MAX(EventDate)
+         FROM EmployeeEvents AS EE_Hire
+         JOIN Events AS EV_Hire ON EE_Hire.EventID = EV_Hire.ID
+         WHERE EE_Hire.EmployeePersonnelNumber = E.PersonnelNumber
+           AND EV_Hire.EventName = 'Прием'
+           AND EE_Hire.EventDate <= EE_Dismiss.EventDate
+        ) AS HireDate,
+        EE_Dismiss.EventDate AS DismissalDate,
+        EE_Dismiss.Reason AS DismissalReason
+    FROM EmployeeEvents AS EE_Dismiss
+    JOIN Employees AS E ON EE_Dismiss.EmployeePersonnelNumber = E.PersonnelNumber
+    JOIN Events AS EV ON EE_Dismiss.EventID = EV.ID
+    LEFT JOIN Positions AS P ON E.PositionID = P.ID
+    LEFT JOIN Departments AS D ON E.DepartmentID = D.ID
+    WHERE EV.EventName = 'Увольнение'
+      AND EE_Dismiss.EventDate BETWEEN ? AND ?
+    ORDER BY EE_Dismiss.EventDate DESC;
+"""
+
+# --- Отчет по отсутствиям ---
+GET_ABSENCES_DETAILS_FOR_REPORT = """
+    SELECT
+        EmployeePersonnelNumber,
+        AbsenceDate,
+        FullDay,
+        StartingTime,
+        EndingTime,
+        ScheduleID
+    FROM Absences
+    WHERE AbsenceDate BETWEEN ? AND ?
+    ORDER BY EmployeePersonnelNumber, AbsenceDate;
+"""
+GET_RAW_ABSENCE_DATA_FOR_SUMMATION = """
+    SELECT
+        A.EmployeePersonnelNumber, -- 0
+        E.LastName || ' ' || E.FirstName || COALESCE(' ' || E.MiddleName, '') AS FullName, -- 1
+        E.PositionID,             -- 2
+        A.AbsenceDate,            -- 3
+        A.FullDay,                -- 4
+        A.StartingTime,           -- 5
+        A.EndingTime,             -- 6
+        A.ScheduleID              -- 7
+    FROM Absences AS A
+    JOIN Employees AS E ON A.EmployeePersonnelNumber = E.PersonnelNumber
+    WHERE A.AbsenceDate BETWEEN ? AND ?
+    ORDER BY A.EmployeePersonnelNumber, A.AbsenceDate;
+"""

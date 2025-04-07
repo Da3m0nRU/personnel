@@ -107,14 +107,14 @@ class EmployeeRepository:  # !!! название класса
         log.debug(
             f"Проверка существования табельного номера: {personnel_number}")
         result = self.db.fetch_one(
-            "SELECT 1 FROM Employees WHERE PersonnelNumber = ?", (personnel_number,))
+            q.CHECK_PERSONNEL_NUMBER_EXISTS, (personnel_number,))
         log.debug(f"Результат проверки: {result is not None}")
         return result is not None
 
     def get_active_employee_count(self):
         """Возвращает количество работающих сотрудников."""
         log.debug("Запрос количества работающих сотрудников")
-        query = "SELECT COUNT(PersonnelNumber) FROM Employees WHERE StateID = (SELECT ID FROM States WHERE StateName = 'Работает')"
+        query = q.GET_ACTIVE_EMPLOYEE_COUNT
         result = self.db.fetch_one(query)
         count = result[0] if result else 0
         log.debug(f"Найдено работающих сотрудников: {count}")
@@ -123,14 +123,7 @@ class EmployeeRepository:  # !!! название класса
     def get_employees_count_by_department(self):
         """Возвращает список кортежей (Название отдела, Количество сотрудников) для работающих."""
         log.debug("Запрос распределения сотрудников по отделам")
-        query = """
-            SELECT D.Name, COUNT(E.PersonnelNumber)
-            FROM Employees E
-            JOIN Departments D ON E.DepartmentID = D.ID
-            WHERE E.StateID = (SELECT ID FROM States WHERE StateName = 'Работает')
-            GROUP BY D.Name
-            ORDER BY COUNT(E.PersonnelNumber) DESC;
-        """
+        query = q.GET_EMPLOYEES_COUNT_BY_DEPARTMENT
         result = self.db.fetch_all(query)
         if result is None:
             log.warning("Не удалось получить распределение по отделам.")
@@ -141,15 +134,7 @@ class EmployeeRepository:  # !!! название класса
     def get_employees_count_by_position(self, limit=7):
         """Возвращает топ N должностей по количеству работающих сотрудников."""
         log.debug(f"Запрос топ-{limit} должностей по количеству сотрудников")
-        query = f"""
-            SELECT P.Name, COUNT(E.PersonnelNumber) as EmpCount
-            FROM Employees E
-            JOIN Positions P ON E.PositionID = P.ID
-            WHERE E.StateID = (SELECT ID FROM States WHERE StateName = 'Работает')
-            GROUP BY P.Name
-            ORDER BY EmpCount DESC
-            LIMIT ?;
-        """  # Используем f-строку для limit, но сам limit передаем параметром
+        query = q.GET_EMPLOYEES_COUNT_BY_POSITION_TOP_N
         result = self.db.fetch_all(
             query, (limit,))  # Передаем limit как параметр
         if result is None:
@@ -161,11 +146,7 @@ class EmployeeRepository:  # !!! название класса
     def get_active_employee_birth_dates(self):
         """Возвращает список дат рождения (строки 'YYYY-MM-DD') работающих сотрудников."""
         log.debug("Запрос дат рождения работающих сотрудников")
-        query = """
-            SELECT BirthDate FROM Employees
-            WHERE StateID = (SELECT ID FROM States WHERE StateName = 'Работает')
-            AND BirthDate IS NOT NULL AND BirthDate != '';
-        """
+        query = q.GET_ACTIVE_EMPLOYEE_BIRTH_DATES
         result = self.db.fetch_all(query)
         if result is None:
             log.warning("Не удалось получить даты рождения.")
@@ -177,14 +158,7 @@ class EmployeeRepository:  # !!! название класса
     def get_gender_distribution(self):
         """Возвращает список кортежей (Пол, Количество сотрудников) для работающих."""
         log.debug("Запрос гендерного распределения сотрудников")
-        query = """
-            SELECT G.GenderName, COUNT(E.PersonnelNumber)
-            FROM Employees E
-            JOIN Genders G ON E.GenderID = G.ID
-            WHERE E.StateID = (SELECT ID FROM States WHERE StateName = 'Работает')
-            GROUP BY G.GenderName
-            ORDER BY COUNT(E.PersonnelNumber) DESC;
-        """
+        query = q.GET_GENDER_DISTRIBUTION
         result = self.db.fetch_all(query)
         if result is None:
             log.warning("Не удалось получить гендерное распределение.")

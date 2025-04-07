@@ -136,7 +136,7 @@ class UserRepository:
         """Проверяет уникальность логина. Исключает current_user_id при редактировании."""
         log.debug(
             f"Проверка уникальности логина: '{login}', исключая ID: {current_user_id}")
-        query = "SELECT 1 FROM Users WHERE Login = ?"
+        query = q.CHECK_LOGIN_UNIQUE
         params = [login]
         if current_user_id is not None:
             query += " AND ID != ?"
@@ -150,7 +150,7 @@ class UserRepository:
         """Возвращает список ролей (ID, RoleName)."""
         log.debug("Запрос списка ролей")
         result = self.db.fetch_all(
-            "SELECT ID, RoleName FROM Roles ORDER BY RoleName")
+            q.GET_ALL_ROLES_ORDERED)
         if result is None:
             log.warning("Не удалось получить список ролей.")
             return []
@@ -159,12 +159,7 @@ class UserRepository:
     def get_active_employees_for_linking(self):
         """Возвращает список работающих сотрудников (Таб.№, ФИО) для связи с пользователем."""
         log.debug("Запрос списка активных сотрудников для связи")
-        query = """
-            SELECT PersonnelNumber, LastName || ' ' || FirstName || COALESCE(' ' || MiddleName, '') AS FullName
-            FROM Employees
-            WHERE StateID = (SELECT ID FROM States WHERE StateName = 'Работает')
-            ORDER BY LastName, FirstName;
-        """
+        query = q.GET_ACTIVE_EMPLOYEES_FOR_LINKING
         result = self.db.fetch_all(query)
         if result is None:
             log.warning("Не удалось получить список сотрудников для связи.")
@@ -177,7 +172,7 @@ class UserRepository:
     def get_admin_count(self):
         """Возвращает количество пользователей с ролью Администратор."""
         log.debug("Запрос количества администраторов")
-        query = "SELECT COUNT(U.ID) FROM Users U JOIN Roles R ON U.RoleID = R.ID WHERE R.RoleName = 'Администратор'"
+        query = q.GET_ADMIN_COUNT
         result = self.db.fetch_one(query)
         count = result[0] if result else 0
         log.debug(f"Найдено администраторов: {count}")
@@ -187,7 +182,7 @@ class UserRepository:
         """Возвращает RoleID пользователя по его ID."""
         log.debug(f"Запрос RoleID для пользователя ID={user_id}")
         result = self.db.fetch_one(
-            "SELECT RoleID FROM Users WHERE ID = ?", (user_id,))
+            q.GET_USER_ROLE_ID_BY_USER_ID, (user_id,))
         role_id = result[0] if result else None
         log.debug(f"RoleID для ID={user_id}: {role_id}")
         return role_id
@@ -196,7 +191,7 @@ class UserRepository:
         """Возвращает ID роли 'Администратор'."""
         log.debug("Запрос ID роли Администратор")
         result = self.db.fetch_one(
-            "SELECT ID FROM Roles WHERE RoleName = 'Администратор'")
+            q.GET_ADMIN_ROLE_ID)
         role_id = result[0] if result else None
         log.debug(f"Admin Role ID: {role_id}")
         return role_id

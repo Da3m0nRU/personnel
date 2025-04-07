@@ -21,6 +21,6 @@ class DepartmentRepository:
             f"Вызван get_department_by_name с department_name='{department_name}'")
 
         result = self.db.fetch_all(
-            q.GET_DEPARTMENT_BY_NAME, (department_name,))
+            q.GET_DEPARTMENT_ID_BY_NAME, (department_name,))
         log.debug(f"get_department_by_name вернул: {result}")
         return result

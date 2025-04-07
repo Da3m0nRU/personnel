@@ -157,7 +157,7 @@ class AbsenceRepository:
     def get_employee_position_id(self, personnel_number):
         """ Получает ID должности сотрудника по его табельному номеру. """
         log.debug(f"Запрос PositionID для сотрудника {personnel_number}")
-        query = "SELECT PositionID FROM Employees WHERE PersonnelNumber = ?"
+        query = q.GET_EMPLOYEE_POSITION_ID_BY_PN
         result = self.db.fetch_one(query, (personnel_number,))
         if result:
             log.debug(f"PositionID для {personnel_number}: {result[0]}")
@@ -175,7 +175,7 @@ class AbsenceRepository:
         """
         log.debug(
             f"Проверка существования отсутствия для {personnel_number} на {absence_date}")
-        query = "SELECT 1 FROM Absences WHERE EmployeePersonnelNumber = ? AND AbsenceDate = ?"
+        query = q.CHECK_ABSENCE_EXISTS_BY_PN_DATE
         result = self.db.fetch_one(query, (personnel_number, absence_date))
         exists = result is not None
         log.debug(
@@ -203,7 +203,7 @@ class AbsenceRepository:
         """
         log.debug("Запрос карты сотрудников (Таб.номер -> ФИО)")
         # Запрос можно не выносить в queries.py, он простой
-        query = "SELECT PersonnelNumber, LastName || ' ' || FirstName || COALESCE(' ' || MiddleName, '') FROM Employees"
+        query = q.GET_EMPLOYEE_FIO_MAP_DATA
         employees = self.db.fetch_all(query)
         if employees is None:
             log.error("Не удалось получить список сотрудников для карты ФИО.")
