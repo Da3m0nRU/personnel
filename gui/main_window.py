@@ -240,7 +240,7 @@ class MainWindow(ctk.CTkFrame):
 
         # Аватар (в первой колонке, занимает 2 строки)
         try:
-            avatar_image = Image.open(relative_to_assets("image_1.png"))
+            avatar_image = Image.open(relative_to_assets("user.png"))
             self.avatar_photo = ctk.CTkImage(avatar_image, size=AVATAR_SIZE)
             self.avatar_label = ctk.CTkLabel(
                 self.user_info_frame, image=self.avatar_photo, text="")
