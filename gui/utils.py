@@ -5,6 +5,7 @@ import customtkinter as ctk
 from config import ASSETS_PATH  # !!!
 import logging
 import logging.handlers
+import re
 
 
 def relative_to_assets(path: str) -> Path:
@@ -73,3 +74,55 @@ def configure_logging(log_level, log_format, log_file, max_log_size, backup_coun
     logger.addHandler(console_handler)
 
     return logger
+
+
+def format_date(date_str):
+    """
+    Преобразует дату из формата БД (ГГГГ-ММ-ДД) в формат отображения (ДД.ММ.ГГГГ).
+
+    Args:
+        date_str (str): Дата в формате ГГГГ-ММ-ДД или None.
+
+    Returns:
+        str: Дата в формате ДД.ММ.ГГГГ или пустая строка, если date_str пустой или None.
+    """
+    if not date_str:  # Проверка на None или пустую строку
+        return ""
+
+    # Шаблон для проверки формата ГГГГ-ММ-ДД
+    pattern = re.compile(r'^\d{4}-\d{2}-\d{2}$')
+    if not pattern.match(date_str):
+        return date_str  # Возвращаем исходную строку, если формат не соответствует
+
+    # Разбиваем строку даты на компоненты
+    try:
+        year, month, day = date_str.split('-')
+        return f"{day}.{month}.{year}"
+    except ValueError:
+        return date_str
+
+
+def parse_date(date_str):
+    """
+    Преобразует дату из формата отображения (ДД.ММ.ГГГГ) в формат БД (ГГГГ-ММ-ДД).
+
+    Args:
+        date_str (str): Дата в формате ДД.ММ.ГГГГ или None.
+
+    Returns:
+        str: Дата в формате ГГГГ-ММ-ДД или пустая строка, если date_str пустой, None или неверного формата.
+    """
+    if not date_str:  # Проверка на None или пустую строку
+        return ""
+
+    # Шаблон для проверки формата ДД.ММ.ГГГГ
+    pattern = re.compile(r'^\d{2}\.\d{2}\.\d{4}$')
+    if not pattern.match(date_str):
+        return ""  # Возвращаем пустую строку, если формат не соответствует
+
+    # Разбиваем строку даты на компоненты
+    try:
+        day, month, year = date_str.split('.')
+        return f"{year}-{month}-{day}"
+    except ValueError:
+        return ""

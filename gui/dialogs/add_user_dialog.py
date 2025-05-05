@@ -19,8 +19,8 @@ class AddUserDialog(ctk.CTkToplevel):
         self.employees_map = {}  # Словарь для Таб.№ сотрудников
 
         self.title("Добавить пользователя")
-        self.geometry("450x600")  # Подберем размер
-        self.resizable(False, False)
+        self.geometry("420x550")  # Уменьшен размер (было 450x600)
+        self.resizable(True, True)  # Разрешаем изменение размера
         self.grab_set()
         self.protocol("WM_DELETE_WINDOW", self.cancel)
 
@@ -32,56 +32,58 @@ class AddUserDialog(ctk.CTkToplevel):
         """Создает виджеты диалога."""
         log.debug("Создание виджетов AddUserDialog")
         dialog_frame = ctk.CTkFrame(self, fg_color="transparent")
-        dialog_frame.pack(expand=True, fill="both", padx=20, pady=20)
+        dialog_frame.pack(expand=True, fill="both", padx=15,
+                          pady=15)  # Уменьшены отступы
 
         # Логин
         ctk.CTkLabel(dialog_frame, text="Логин*",
                      font=DEFAULT_FONT).pack(anchor="w")
         self.login_entry = ctk.CTkEntry(
-            dialog_frame, font=DEFAULT_FONT, width=380)
-        self.login_entry.pack(anchor="w", pady=(2, 10))
+            dialog_frame, font=DEFAULT_FONT, width=350)  # Уменьшена ширина
+        self.login_entry.pack(anchor="w", pady=(2, 8))  # Уменьшен отступ
         self.login_entry.bind("<KeyRelease>", self.check_fields)
 
         # Пароль
         ctk.CTkLabel(dialog_frame, text="Пароль*",
                      font=DEFAULT_FONT).pack(anchor="w")
         self.password_entry = ctk.CTkEntry(
-            dialog_frame, font=DEFAULT_FONT, show="*", width=380)
-        self.password_entry.pack(anchor="w", pady=(2, 10))
+            dialog_frame, font=DEFAULT_FONT, show="*", width=350)  # Уменьшена ширина
+        self.password_entry.pack(anchor="w", pady=(2, 8))  # Уменьшен отступ
         self.password_entry.bind("<KeyRelease>", self.check_fields)
 
         # Подтверждение пароля
         ctk.CTkLabel(dialog_frame, text="Подтверждение пароля*",
                      font=DEFAULT_FONT).pack(anchor="w")
         self.confirm_password_entry = ctk.CTkEntry(
-            dialog_frame, font=DEFAULT_FONT, show="*", width=380)
-        self.confirm_password_entry.pack(anchor="w", pady=(2, 10))
+            dialog_frame, font=DEFAULT_FONT, show="*", width=350)  # Уменьшена ширина
+        self.confirm_password_entry.pack(
+            anchor="w", pady=(2, 8))  # Уменьшен отступ
         self.confirm_password_entry.bind("<KeyRelease>", self.check_fields)
 
         # Роль
         ctk.CTkLabel(dialog_frame, text="Роль*",
                      font=DEFAULT_FONT).pack(anchor="w")
         self.role_combo = ctk.CTkComboBox(
-            dialog_frame, values=[], font=DEFAULT_FONT, width=380, state="readonly",
+            dialog_frame, values=[], font=DEFAULT_FONT, width=350, state="readonly",  # Уменьшена ширина
             command=self.check_fields
         )
-        self.role_combo.pack(anchor="w", pady=(2, 10))
+        self.role_combo.pack(anchor="w", pady=(2, 8))  # Уменьшен отступ
 
         # Связать с сотрудником
         ctk.CTkLabel(dialog_frame, text="Связать с сотрудником (опционально)",
                      font=DEFAULT_FONT).pack(anchor="w")
         self.employee_combo = ctk.CTkComboBox(
-            dialog_frame, values=[], font=DEFAULT_FONT, width=380, state="readonly"
+            dialog_frame, values=[], font=DEFAULT_FONT, width=350, state="readonly"  # Уменьшена ширина
             # command не нужен, т.к. поле опционально
         )
-        self.employee_combo.pack(anchor="w", pady=(2, 10))
+        self.employee_combo.pack(anchor="w", pady=(2, 8))  # Уменьшен отступ
 
         # Email
         ctk.CTkLabel(dialog_frame, text="Email (опционально)",
                      font=DEFAULT_FONT).pack(anchor="w")
         self.email_entry = ctk.CTkEntry(
-            dialog_frame, font=DEFAULT_FONT, width=380)
-        self.email_entry.pack(anchor="w", pady=(2, 20))
+            dialog_frame, font=DEFAULT_FONT, width=350)  # Уменьшена ширина
+        self.email_entry.pack(anchor="w", pady=(2, 15))  # Уменьшен отступ
         # Email не влияет на активность кнопки Save
 
         # Кнопки

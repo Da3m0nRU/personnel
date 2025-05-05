@@ -23,8 +23,8 @@ class ConfirmEventDialog(ctk.CTkToplevel):
         self.confirmed = False  # Добавляем атрибут-флаг
 
         self.title(event_type)
-        self.geometry("500x300")  # Или другой подходящий размер
-        self.resizable(False, False)
+        self.geometry("450x270")  # Уменьшен размер (было 500x300)
+        self.resizable(True, True)  # Разрешаем изменение размера
         self.create_widgets()
         self.grab_set()
 
@@ -33,8 +33,8 @@ class ConfirmEventDialog(ctk.CTkToplevel):
         log.debug("Создание виджетов ConfirmEventDialog")  # !!!
 
         title_label = ctk.CTkLabel(
-            self, text=self.event_type, font=("Arial", 24, "bold"))
-        title_label.pack(pady=(20, 10))
+            self, text=self.event_type, font=("Arial", 22, "bold"))  # Уменьшен шрифт
+        title_label.pack(pady=(15, 8))  # Уменьшены отступы
 
         if self.event_type == "Увольнение":
             text = f"Вы собираетесь уволить сотрудника {self.employee_name}.\nУкажите причину увольнения:"
@@ -49,17 +49,18 @@ class ConfirmEventDialog(ctk.CTkToplevel):
             text = f"Вы собираетесь принять на работу сотрудника {self.employee_name}."
 
         text_label = ctk.CTkLabel(
-            self, text=text, font=DEFAULT_FONT, wraplength=450, justify="left")
-        text_label.pack(pady=(10, 5))
+            self, text=text, font=DEFAULT_FONT, wraplength=420, justify="left")  # Уменьшена ширина переноса строк
+        text_label.pack(pady=(8, 4))  # Уменьшены отступы
 
         #  Поле для ввода причины (многострочное).  Появляется, если НЕ "Прием".
         if self.event_type != "Прием":
             self.reason_textbox = ctk.CTkTextbox(
-                self, height=80, font=DEFAULT_FONT)
-            self.reason_textbox.pack(padx=20, pady=(5, 20), fill="x")
+                self, height=70, font=DEFAULT_FONT)  # Уменьшена высота
+            self.reason_textbox.pack(padx=15, pady=(
+                4, 15), fill="x")  # Уменьшены отступы
 
         button_frame = ctk.CTkFrame(self, fg_color="transparent")
-        button_frame.pack(pady=(0, 20))
+        button_frame.pack(pady=(0, 15))  # Уменьшен отступ
 
         confirm_button = ctk.CTkButton(button_frame, text="Подтвердить", command=self.confirm,
                                        fg_color="#0057FC", text_color="white",

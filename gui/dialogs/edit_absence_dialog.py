@@ -20,8 +20,8 @@ class EditAbsenceDialog(ctk.CTkToplevel):
         self.absence_id = absence_id
         self.original_data = None  # Для хранения исходных данных
         self.title("Редактировать отсутствие")
-        self.geometry("500x650")
-        self.resizable(False, False)
+        self.geometry("450x580")  # Уменьшен размер (было 500x650)
+        self.resizable(True, True)  # Разрешаем изменение размера
         self.grab_set()
         self.protocol("WM_DELETE_WINDOW", self.cancel)
 
@@ -59,68 +59,81 @@ class EditAbsenceDialog(ctk.CTkToplevel):
         """ Создает виджеты диалога. """
         log.debug("Создание виджетов EditAbsenceDialog")
         dialog_frame = ctk.CTkFrame(self, fg_color="transparent")
-        dialog_frame.pack(expand=True, fill="both", padx=20, pady=20)
+        dialog_frame.pack(expand=True, fill="both", padx=15,
+                          pady=15)  # Уменьшены отступы
 
         # Сотрудник (Label)
         ctk.CTkLabel(dialog_frame, text="Сотрудник",
                      font=DEFAULT_FONT).pack(anchor="w")
         self.employee_label = ctk.CTkLabel(
             dialog_frame, text="Загрузка...", font=DEFAULT_FONT, anchor="w")
-        self.employee_label.pack(anchor="w", pady=(2, 10), fill="x")
+        self.employee_label.pack(anchor="w", pady=(
+            2, 8), fill="x")  # Уменьшен отступ
 
         # Дата (3 поля)
         ctk.CTkLabel(dialog_frame, text="Дата отсутствия*",
                      font=DEFAULT_FONT).pack(anchor="w")
         date_frame = ctk.CTkFrame(dialog_frame, fg_color="transparent")
-        date_frame.pack(fill="x", pady=(2, 10))
+        date_frame.pack(fill="x", pady=(2, 8))  # Уменьшен отступ
         ctk.CTkLabel(date_frame, text="День", font=DEFAULT_FONT).grid(
-            row=0, column=0, padx=(0, 5), sticky="w")
+            row=0, column=0, padx=(0, 4), sticky="w")  # Уменьшен отступ
         self.day_combo = ctk.CTkComboBox(
-            date_frame, values=[], width=60, font=DEFAULT_FONT, state="readonly")
-        self.day_combo.grid(row=1, column=0, padx=(0, 5), sticky="w")
+            date_frame, values=[], width=55, font=DEFAULT_FONT, state="readonly")  # Уменьшена ширина
+        self.day_combo.grid(row=1, column=0, padx=(0, 4),
+                            sticky="w")  # Уменьшен отступ
+
         ctk.CTkLabel(date_frame, text="Месяц", font=DEFAULT_FONT).grid(
-            row=0, column=1, padx=(0, 5), sticky="w")
+            row=0, column=1, padx=(0, 4), sticky="w")  # Уменьшен отступ
         self.month_combo = ctk.CTkComboBox(
-            date_frame, values=self.month_names, width=120, font=DEFAULT_FONT, state="readonly")
-        self.month_combo.grid(row=1, column=1, padx=(0, 5), sticky="w")
+            date_frame, values=self.month_names, width=90, font=DEFAULT_FONT, state="readonly")  # Уменьшена ширина
+        self.month_combo.grid(row=1, column=1, padx=(
+            0, 4), sticky="w")  # Уменьшен отступ
+
         ctk.CTkLabel(date_frame, text="Год", font=DEFAULT_FONT).grid(
-            row=0, column=2, padx=(0, 5), sticky="w")
-        self.year_entry = ctk.CTkEntry(date_frame, width=80, font=DEFAULT_FONT)
-        self.year_entry.grid(row=1, column=2, padx=(0, 5), sticky="w")
+            row=0, column=2, padx=(0, 4), sticky="w")  # Уменьшен отступ
+        self.year_entry = ctk.CTkEntry(
+            date_frame, width=70, font=DEFAULT_FONT)  # Уменьшена ширина
+        self.year_entry.grid(row=1, column=2, padx=(0, 4),
+                             sticky="w")  # Уменьшен отступ
 
         # Полный день (Checkbox)
         self.full_day_var = ctk.IntVar()  # Значение установится при загрузке данных
         self.full_day_check = ctk.CTkCheckBox(
             dialog_frame, text="Полный день", variable=self.full_day_var, font=DEFAULT_FONT)
         # command привязывается в __init__
-        self.full_day_check.pack(anchor="w", pady=(5, 10))
+        self.full_day_check.pack(anchor="w", pady=(5, 8))  # Уменьшен отступ
 
         # Время (Frame + 2 Entry + Label)
         self.time_frame = ctk.CTkFrame(dialog_frame, fg_color="transparent")
-        self.time_frame.pack(fill="x", pady=(0, 10))
+        self.time_frame.pack(fill="x", pady=(0, 8))  # Уменьшен отступ
+
         ctk.CTkLabel(self.time_frame, text="Начало (ЧЧ:ММ)", font=DEFAULT_FONT).grid(
-            row=0, column=0, padx=(0, 10), sticky="w")
+            row=0, column=0, padx=(0, 8), sticky="w")  # Уменьшен отступ
         self.start_time_entry = ctk.CTkEntry(
-            self.time_frame, font=DEFAULT_FONT, width=80)
-        self.start_time_entry.grid(row=1, column=0, padx=(0, 10), sticky="w")
+            self.time_frame, font=DEFAULT_FONT, width=75)  # Уменьшена ширина
+        self.start_time_entry.grid(row=1, column=0, padx=(
+            0, 8), sticky="w")  # Уменьшен отступ
         self.start_time_entry.bind("<KeyRelease>", self.check_fields)
+
         ctk.CTkLabel(self.time_frame, text="Окончание (ЧЧ:ММ)",
                      font=DEFAULT_FONT).grid(row=0, column=1, sticky="w")
         self.end_time_entry = ctk.CTkEntry(
-            self.time_frame, font=DEFAULT_FONT, width=80)
+            self.time_frame, font=DEFAULT_FONT, width=75)  # Уменьшена ширина
         self.end_time_entry.grid(row=1, column=1, sticky="w")
         self.end_time_entry.bind("<KeyRelease>", self.check_fields)
+
         self.work_hours_label = ctk.CTkLabel(
-            self.time_frame, text="", font=("Arial", 12), text_color="grey")
+            self.time_frame, text="", font=("Arial", 11), text_color="grey")  # Уменьшен шрифт
         self.work_hours_label.grid(
-            row=2, column=0, columnspan=2, pady=(5, 0), sticky="w")
+            row=2, column=0, columnspan=2, pady=(4, 0), sticky="w")  # Уменьшен отступ
 
         # Причина (Textbox)
         ctk.CTkLabel(dialog_frame, text="Причина*",
                      font=DEFAULT_FONT).pack(anchor="w")
         self.reason_textbox = ctk.CTkTextbox(
-            dialog_frame, font=DEFAULT_FONT, height=100)
-        self.reason_textbox.pack(anchor="w", fill="x", pady=(2, 20))
+            dialog_frame, font=DEFAULT_FONT, height=80)  # Уменьшена высота
+        self.reason_textbox.pack(anchor="w", fill="x",
+                                 pady=(2, 15))  # Уменьшен отступ
         self.reason_textbox.bind("<KeyRelease>", self.check_fields)
 
         # Кнопки (Frame + 2 Button)

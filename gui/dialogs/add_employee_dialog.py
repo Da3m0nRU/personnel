@@ -30,8 +30,8 @@ class AddEmployeeDialog(ctk.CTkToplevel):
         self.state_repository = master.state_repository
         self.department_repository = master.department_repository
         self.title("Добавить сотрудника")
-        self.geometry("650x920")
-        self.resizable(False, False)
+        self.geometry("600x850")  # Уменьшен размер с 650x920
+        self.resizable(True, True)  # Разрешаем изменение размера
         self.create_widgets()
         self.grab_set()
         self.check_fields()
@@ -42,17 +42,17 @@ class AddEmployeeDialog(ctk.CTkToplevel):
         Создает виджеты диалога.
         """
         log.debug("Создание виджетов для AddEmployeeDialog")
-        section_font = ("Arial", 20, "bold")
+        section_font = ("Arial", 18, "bold")  # Уменьшен размер шрифта
 
         # --- Раздел 1:  Добавить сотрудника (заголовок) ---
         main_section_label = ctk.CTkLabel(
             self,
             text="ДОБАВИТЬ СОТРУДНИКА",
-            font=("Arial", 28, "bold"),
+            font=("Arial", 24, "bold"),  # Уменьшен размер шрифта
             text_color=BUTTON_ACTIVE_BG_COLOR,
         )
         main_section_label.grid(
-            row=0, column=0, columnspan=2, pady=(10, 20))
+            row=0, column=0, columnspan=2, pady=(8, 15))  # Уменьшены отступы
 
         # --- Разделитель (белая линия) ---
         separator1 = ctk.CTkFrame(self, height=2, fg_color="white")
@@ -63,7 +63,7 @@ class AddEmployeeDialog(ctk.CTkToplevel):
         personal_info_label = ctk.CTkLabel(
             self, text="Личные данные", font=section_font, text_color=FORM_LABEL_TEXT_COLOR)
         personal_info_label.grid(
-            row=2, column=0, columnspan=2, sticky="w", padx=10, pady=(10, 5))
+            row=2, column=0, columnspan=2, sticky="w", padx=10, pady=(8, 4))  # Уменьшены отступы
 
         personal_info_frame = ctk.CTkFrame(
             self, fg_color="transparent")
@@ -74,9 +74,9 @@ class AddEmployeeDialog(ctk.CTkToplevel):
         ctk.CTkLabel(personal_info_frame, text="Табельный номер", font=DEFAULT_FONT, text_color=FORM_LABEL_TEXT_COLOR
                      ).grid(row=0, column=0, sticky="w",  pady=(0, 2))
         self.personnel_number_entry = ctk.CTkEntry(
-            personal_info_frame, width=200, font=DEFAULT_FONT)
+            personal_info_frame, width=180, font=DEFAULT_FONT)  # Уменьшена ширина
         self.personnel_number_entry.grid(
-            row=1, column=0, sticky="w",  pady=(0, 10))
+            row=1, column=0, sticky="w",  pady=(0, 8))  # Уменьшен отступ
         self.personnel_number_entry.bind(
             "<KeyRelease>", self.check_fields)
 
@@ -84,8 +84,9 @@ class AddEmployeeDialog(ctk.CTkToplevel):
         ctk.CTkLabel(personal_info_frame, text="Фамилия", font=DEFAULT_FONT, text_color=FORM_LABEL_TEXT_COLOR
                      ).grid(row=2, column=0, sticky="w",  pady=(0, 2))
         self.lastname_entry = ctk.CTkEntry(
-            personal_info_frame, width=250, font=DEFAULT_FONT)
-        self.lastname_entry.grid(row=3, column=0, sticky="w",  pady=(0, 10))
+            personal_info_frame, width=220, font=DEFAULT_FONT)  # Уменьшена ширина
+        self.lastname_entry.grid(
+            row=3, column=0, sticky="w",  pady=(0, 8))  # Уменьшен отступ
         self.lastname_entry.bind("<KeyRelease>", self.check_fields)
 
         # --- Имя ---
@@ -93,8 +94,9 @@ class AddEmployeeDialog(ctk.CTkToplevel):
                      text_color=FORM_LABEL_TEXT_COLOR
                      ).grid(row=4, column=0, sticky="w",  pady=(0, 2))
         self.firstname_entry = ctk.CTkEntry(
-            personal_info_frame, width=250, font=DEFAULT_FONT)
-        self.firstname_entry.grid(row=5, column=0, sticky="w", pady=(0, 10))
+            personal_info_frame, width=220, font=DEFAULT_FONT)  # Уменьшена ширина
+        self.firstname_entry.grid(
+            row=5, column=0, sticky="w", pady=(0, 8))  # Уменьшен отступ
         self.firstname_entry.bind("<KeyRelease>", self.check_fields)
 
         # --- Отчество ---
@@ -102,19 +104,20 @@ class AddEmployeeDialog(ctk.CTkToplevel):
                      text_color=FORM_LABEL_TEXT_COLOR
                      ).grid(row=6, column=0, sticky="w",  pady=(0, 2))
         self.middlename_entry = ctk.CTkEntry(
-            personal_info_frame, width=250, font=DEFAULT_FONT)
-        self.middlename_entry.grid(row=7, column=0, sticky="w",  pady=(0, 10))
+            personal_info_frame, width=220, font=DEFAULT_FONT)  # Уменьшена ширина
+        self.middlename_entry.grid(
+            row=7, column=0, sticky="w",  pady=(0, 8))  # Уменьшен отступ
 
         # --- Разделитель (белая линия) ---
         separator2 = ctk.CTkFrame(self, height=2, fg_color="white")
         separator2.grid(row=4, column=0, columnspan=2,
-                        sticky="ew", padx=10, pady=(10, 5))
+                        sticky="ew", padx=10, pady=(8, 4))  # Уменьшены отступы
 
         # --- Раздел 3: Дата рождения ---
         birthdate_label = ctk.CTkLabel(
             self, text="Дата рождения", font=section_font, text_color=FORM_LABEL_TEXT_COLOR)
         birthdate_label.grid(
-            row=5, column=0, columnspan=2, sticky="w", padx=10, pady=(10, 5))
+            row=5, column=0, columnspan=2, sticky="w", padx=10, pady=(8, 4))  # Уменьшены отступы
 
         birthdate_frame = ctk.CTkFrame(self, fg_color="transparent")
         birthdate_frame.grid(
@@ -126,12 +129,12 @@ class AddEmployeeDialog(ctk.CTkToplevel):
         self.birth_day_combo = ctk.CTkComboBox(
             birthdate_frame,
             values=[str(i) for i in range(1, 32)],  # Дни (1-31)
-            width=60, font=DEFAULT_FONT,
+            width=55, font=DEFAULT_FONT,  # Уменьшена ширина
             state="readonly",
             command=self.check_fields
         )
         self.birth_day_combo.grid(
-            row=1, column=0, sticky="w", padx=(0, 5), pady=(0, 10))
+            row=1, column=0, sticky="w", padx=(0, 4), pady=(0, 8))  # Уменьшены отступы
 
         # --- Месяц ---
         ctk.CTkLabel(birthdate_frame, text="Месяц", font=DEFAULT_FONT, text_color=FORM_LABEL_TEXT_COLOR
@@ -142,22 +145,22 @@ class AddEmployeeDialog(ctk.CTkToplevel):
                 "Январь", "Февраль", "Март", "Апрель", "Май", "Июнь",
                 "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь"
             ],
-            width=100, font=DEFAULT_FONT,
+            width=90, font=DEFAULT_FONT,  # Уменьшена ширина
             state="readonly",
             command=self.check_fields
         )
         self.birth_month_combo.grid(
-            row=1, column=1, sticky="w", padx=(0, 5), pady=(0, 10))
+            row=1, column=1, sticky="w", padx=(0, 4), pady=(0, 8))  # Уменьшены отступы
 
         # --- Год ---
         ctk.CTkLabel(birthdate_frame, text="Год", font=DEFAULT_FONT, text_color=FORM_LABEL_TEXT_COLOR
                      ).grid(row=0, column=2, sticky="w", pady=(0, 2))
         self.birth_year_entry = ctk.CTkEntry(
             birthdate_frame,
-            width=80, font=DEFAULT_FONT
+            width=70, font=DEFAULT_FONT  # Уменьшена ширина
         )
         self.birth_year_entry.grid(
-            row=1, column=2, sticky="w", padx=(0, 10), pady=(0, 10))
+            row=1, column=2, sticky="w", padx=(0, 8), pady=(0, 8))  # Уменьшены отступы
         self.birth_year_entry.bind("<KeyRelease>", self.check_fields)
 
         # --- Пол ---
@@ -165,23 +168,23 @@ class AddEmployeeDialog(ctk.CTkToplevel):
                      ).grid(row=2, column=0, sticky="w",  pady=(0, 2))
         self.gender_combo = ctk.CTkComboBox(
             birthdate_frame, values=[],
-            width=150, font=DEFAULT_FONT,
+            width=140, font=DEFAULT_FONT,  # Уменьшена ширина
             state="readonly",
             command=self.check_fields
         )
         self.gender_combo.grid(
-            row=3, column=0, columnspan=3, sticky="w",  pady=(0, 10))
+            row=3, column=0, columnspan=3, sticky="w",  pady=(0, 8))  # Уменьшен отступ
 
         # --- Разделитель (белая линия) ---
         separator3 = ctk.CTkFrame(self, height=2, fg_color="white")
         separator3.grid(row=7, column=0, columnspan=2,
-                        sticky="ew", padx=10, pady=(10, 5))
+                        sticky="ew", padx=10, pady=(8, 4))  # Уменьшены отступы
 
         # --- Раздел 4: Информация о работе ---
         work_info_label = ctk.CTkLabel(
             self, text="Информация о работе", font=section_font, text_color=FORM_LABEL_TEXT_COLOR)
         work_info_label.grid(
-            row=8, column=0, columnspan=2, sticky="w", padx=10, pady=(10, 5))
+            row=8, column=0, columnspan=2, sticky="w", padx=10, pady=(8, 4))  # Уменьшены отступы
 
         work_info_frame = ctk.CTkFrame(self, fg_color="transparent")
         work_info_frame.grid(
@@ -193,20 +196,21 @@ class AddEmployeeDialog(ctk.CTkToplevel):
                      ).grid(row=0, column=0, sticky="w",  pady=(0, 2))
         self.position_combo = ctk.CTkComboBox(
             work_info_frame, values=[],
-            width=200, font=DEFAULT_FONT,
+            width=180, font=DEFAULT_FONT,  # Уменьшена ширина
             state="readonly",
             command=self.update_departments
         )
         self.position_combo.grid(
-            row=1, column=0, sticky="w",  pady=(0, 10))
+            row=1, column=0, sticky="w",  pady=(0, 8))  # Уменьшен отступ
 
         # --- Подразделение ---
         ctk.CTkLabel(work_info_frame, text="Подразделение", font=DEFAULT_FONT,
                      text_color=FORM_LABEL_TEXT_COLOR
                      ).grid(row=2, column=0, sticky="w",  pady=(0, 2))
         self.department_label = ctk.CTkLabel(
-            work_info_frame, text="", font=DEFAULT_FONT, text_color=LABEL_TEXT_COLOR, anchor="w", width=200)
-        self.department_label.grid(row=3, column=0, sticky="w", pady=(0, 10))
+            work_info_frame, text="", font=DEFAULT_FONT, text_color=LABEL_TEXT_COLOR, anchor="w", width=180)  # Уменьшена ширина
+        self.department_label.grid(
+            row=3, column=0, sticky="w", pady=(0, 8))  # Уменьшен отступ
 
         # --- Состояние ---
         ctk.CTkLabel(work_info_frame, text="Состояние", font=DEFAULT_FONT,
@@ -214,16 +218,18 @@ class AddEmployeeDialog(ctk.CTkToplevel):
                      ).grid(row=4, column=0, sticky="w",  pady=(0, 2))
         self.state_combo = ctk.CTkComboBox(
             work_info_frame, values=[],
-            width=200, font=DEFAULT_FONT,
+            width=180, font=DEFAULT_FONT,  # Уменьшена ширина
             state="readonly",
             command=self.check_fields
         )
-        self.state_combo.grid(row=5, column=0, sticky="w", pady=(0, 10))
+        self.state_combo.grid(row=5, column=0, sticky="w",
+                              pady=(0, 8))  # Уменьшен отступ
 
         # --- Кнопки ---
         buttons_frame = ctk.CTkFrame(
             self, fg_color="transparent")
-        buttons_frame.grid(row=10, column=0, columnspan=2, pady=20)
+        buttons_frame.grid(row=10, column=0, columnspan=2,
+                           pady=15)  # Уменьшен отступ
 
         self.save_button = ctk.CTkButton(
             buttons_frame,

@@ -23,8 +23,8 @@ class EditUserDialog(ctk.CTkToplevel):
         self.admin_role_id = self.repository.get_admin_role_id()  # ID роли админа
 
         self.title("Редактировать пользователя")
-        self.geometry("450x650")  # Чуть выше из-за полей пароля
-        self.resizable(False, False)
+        self.geometry("420x600")  # Уменьшен размер (было 450x650)
+        self.resizable(True, True)  # Разрешаем изменение размера
         self.grab_set()
         self.protocol("WM_DELETE_WINDOW", self.cancel)
 
@@ -40,59 +40,64 @@ class EditUserDialog(ctk.CTkToplevel):
         log.debug(
             f"Создание виджетов EditUserDialog для User ID={self.user_id}")
         dialog_frame = ctk.CTkFrame(self, fg_color="transparent")
-        dialog_frame.pack(expand=True, fill="both", padx=20, pady=20)
+        dialog_frame.pack(expand=True, fill="both", padx=15,
+                          pady=15)  # Уменьшены отступы
 
         # Логин (нередактируемый)
         ctk.CTkLabel(dialog_frame, text="Логин",
                      font=DEFAULT_FONT).pack(anchor="w")
         self.login_label = ctk.CTkLabel(
             dialog_frame, text="...", font=DEFAULT_FONT, anchor="w")
-        self.login_label.pack(anchor="w", pady=(2, 10), fill="x")
+        self.login_label.pack(anchor="w", pady=(
+            2, 8), fill="x")  # Уменьшен отступ
 
         # Роль
         ctk.CTkLabel(dialog_frame, text="Роль*",
                      font=DEFAULT_FONT).pack(anchor="w")
         self.role_combo = ctk.CTkComboBox(
-            dialog_frame, values=[], font=DEFAULT_FONT, width=380, state="readonly",
+            dialog_frame, values=[], font=DEFAULT_FONT, width=350, state="readonly",  # Уменьшена ширина
             command=self.check_fields
         )
-        self.role_combo.pack(anchor="w", pady=(2, 10))
+        self.role_combo.pack(anchor="w", pady=(2, 8))  # Уменьшен отступ
 
         # Связать с сотрудником
         ctk.CTkLabel(dialog_frame, text="Связать с сотрудником",
                      font=DEFAULT_FONT).pack(anchor="w")
         self.employee_combo = ctk.CTkComboBox(
-            dialog_frame, values=[], font=DEFAULT_FONT, width=380, state="readonly"
+            dialog_frame, values=[], font=DEFAULT_FONT, width=350, state="readonly"  # Уменьшена ширина
         )
-        self.employee_combo.pack(anchor="w", pady=(2, 10))
+        self.employee_combo.pack(anchor="w", pady=(2, 8))  # Уменьшен отступ
 
         # Email
         ctk.CTkLabel(dialog_frame, text="Email",
                      font=DEFAULT_FONT).pack(anchor="w")
         self.email_entry = ctk.CTkEntry(
-            dialog_frame, font=DEFAULT_FONT, width=380)
-        self.email_entry.pack(anchor="w", pady=(2, 20))
+            dialog_frame, font=DEFAULT_FONT, width=350)  # Уменьшена ширина
+        self.email_entry.pack(anchor="w", pady=(2, 15))  # Уменьшен отступ
 
         # --- Поля для смены пароля ---
         ctk.CTkLabel(dialog_frame, text="Новый пароль (оставьте пустым, если не меняете)",
                      font=DEFAULT_FONT).pack(anchor="w")
         self.new_password_entry = ctk.CTkEntry(
-            dialog_frame, font=DEFAULT_FONT, show="*", width=380)
-        self.new_password_entry.pack(anchor="w", pady=(2, 10))
+            dialog_frame, font=DEFAULT_FONT, show="*", width=350)  # Уменьшена ширина
+        self.new_password_entry.pack(
+            anchor="w", pady=(2, 8))  # Уменьшен отступ
         # Проверка нужна, если пароль меняется
         self.new_password_entry.bind("<KeyRelease>", self.check_fields)
 
         ctk.CTkLabel(dialog_frame, text="Подтверждение нового пароля",
                      font=DEFAULT_FONT).pack(anchor="w")
         self.confirm_new_password_entry = ctk.CTkEntry(
-            dialog_frame, font=DEFAULT_FONT, show="*", width=380)
-        self.confirm_new_password_entry.pack(anchor="w", pady=(2, 20))
+            dialog_frame, font=DEFAULT_FONT, show="*", width=350)  # Уменьшена ширина
+        self.confirm_new_password_entry.pack(
+            anchor="w", pady=(2, 15))  # Уменьшен отступ
         self.confirm_new_password_entry.bind(
             "<KeyRelease>", self.check_fields)  # Проверка нужна
 
         # Кнопки
         buttons_frame = ctk.CTkFrame(dialog_frame, fg_color="transparent")
-        buttons_frame.pack(fill="x", side="bottom", pady=(10, 0))
+        buttons_frame.pack(fill="x", side="bottom",
+                           pady=(8, 0))  # Уменьшен отступ
 
         self.save_button = ctk.CTkButton(
             buttons_frame, text="Сохранить", command=self.save_user, font=DEFAULT_FONT

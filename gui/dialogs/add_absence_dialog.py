@@ -25,9 +25,9 @@ class AddAbsenceDialog(ctk.CTkToplevel):
         self.repository = repository  # Сохраняем репозиторий
 
         self.title("Добавить отсутствие")
-        # Увеличим размер, так как дата стала сложнее
-        self.geometry("500x650")  # Больше высоты
-        self.resizable(False, False)
+        # Уменьшаем размер окна
+        self.geometry("450x600")  # Было 500x650
+        self.resizable(True, True)  # Делаем изменяемым размер
         self.grab_set()  # Делаем модальным
         # Обработка закрытия окна
         self.protocol("WM_DELETE_WINDOW", self.cancel)
@@ -74,7 +74,8 @@ class AddAbsenceDialog(ctk.CTkToplevel):
         """ Создает виджеты диалога. """
         log.debug("Создание виджетов AddAbsenceDialog (с датой из 3 полей)")
         dialog_frame = ctk.CTkFrame(self, fg_color="transparent")
-        dialog_frame.pack(expand=True, fill="both", padx=20, pady=20)
+        dialog_frame.pack(expand=True, fill="both", padx=15,
+                          pady=15)  # Уменьшены отступы
 
         # --- Сотрудник ---
         ctk.CTkLabel(dialog_frame, text="Сотрудник*",
@@ -83,17 +84,17 @@ class AddAbsenceDialog(ctk.CTkToplevel):
             dialog_frame,
             values=[],  # Будут загружены позже
             font=DEFAULT_FONT,
-            width=400,  # Сделаем пошире
+            width=380,  # Уменьшена ширина
             state="readonly",
             # command привязывается в __init__
         )
-        self.employee_combo.pack(anchor="w", pady=(2, 10))
+        self.employee_combo.pack(anchor="w", pady=(2, 8))  # Уменьшен отступ
 
         # --- Дата отсутствия (3 поля) ---
         ctk.CTkLabel(dialog_frame, text="Дата отсутствия*",
                      font=DEFAULT_FONT).pack(anchor="w")
         date_frame = ctk.CTkFrame(dialog_frame, fg_color="transparent")
-        date_frame.pack(fill="x", pady=(2, 10))
+        date_frame.pack(fill="x", pady=(2, 8))  # Уменьшен отступ
 
         # День
         ctk.CTkLabel(date_frame, text="День", font=DEFAULT_FONT).grid(
@@ -129,40 +130,42 @@ class AddAbsenceDialog(ctk.CTkToplevel):
             font=DEFAULT_FONT,
             command=self.toggle_time_fields  # Вызываем при изменении состояния
         )
-        self.full_day_check.pack(anchor="w", pady=(5, 10))
+        self.full_day_check.pack(anchor="w", pady=(5, 8))  # Уменьшен отступ
 
         # --- Время (для неполного дня) ---
         self.time_frame = ctk.CTkFrame(dialog_frame, fg_color="transparent")
-        self.time_frame.pack(fill="x", pady=(0, 10))
+        self.time_frame.pack(fill="x", pady=(0, 8))  # Уменьшен отступ
 
         ctk.CTkLabel(self.time_frame, text="Начало (ЧЧ:ММ)", font=DEFAULT_FONT).grid(
-            row=0, column=0, padx=(0, 10), sticky="w")
+            row=0, column=0, padx=(0, 8), sticky="w")  # Уменьшен отступ
         self.start_time_entry = ctk.CTkEntry(
-            self.time_frame, font=DEFAULT_FONT, width=80)
-        self.start_time_entry.grid(row=1, column=0, padx=(0, 10), sticky="w")
+            self.time_frame, font=DEFAULT_FONT, width=75)  # Уменьшена ширина
+        self.start_time_entry.grid(row=1, column=0, padx=(
+            0, 8), sticky="w")  # Уменьшен отступ
         self.start_time_entry.bind(
             "<KeyRelease>", self.check_fields)  # Проверка при вводе
 
         ctk.CTkLabel(self.time_frame, text="Окончание (ЧЧ:ММ)",
                      font=DEFAULT_FONT).grid(row=0, column=1, sticky="w")
         self.end_time_entry = ctk.CTkEntry(
-            self.time_frame, font=DEFAULT_FONT, width=80)
+            self.time_frame, font=DEFAULT_FONT, width=75)  # Уменьшена ширина
         self.end_time_entry.grid(row=1, column=1, sticky="w")
         self.end_time_entry.bind(
             "<KeyRelease>", self.check_fields)  # Проверка при вводе
 
         # Информационная метка о рабочих часах (пока скрыта)
         self.work_hours_label = ctk.CTkLabel(
-            self.time_frame, text="", font=("Arial", 12), text_color="grey")
+            self.time_frame, text="", font=("Arial", 11), text_color="grey")  # Уменьшен шрифт
         self.work_hours_label.grid(
-            row=2, column=0, columnspan=2, pady=(5, 0), sticky="w")
+            row=2, column=0, columnspan=2, pady=(4, 0), sticky="w")  # Уменьшен отступ
 
         # --- Причина ---
         ctk.CTkLabel(dialog_frame, text="Причина*",
                      font=DEFAULT_FONT).pack(anchor="w")
         self.reason_textbox = ctk.CTkTextbox(
-            dialog_frame, font=DEFAULT_FONT, height=100)  # Увеличим высоту
-        self.reason_textbox.pack(anchor="w", fill="x", pady=(2, 20))
+            dialog_frame, font=DEFAULT_FONT, height=80)  # Уменьшена высота
+        self.reason_textbox.pack(anchor="w", fill="x",
+                                 pady=(2, 15))  # Уменьшен отступ
         self.reason_textbox.bind(
             "<KeyRelease>", self.check_fields)  # Проверка при вводе
 

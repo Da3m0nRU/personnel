@@ -94,3 +94,34 @@ class RoleRepository:
         else:
             log.debug(f"Получено {len(result)} ролей.")
             return result
+
+    def insert_role(self, role_name: str) -> int | None:
+        """
+        Добавляет новую роль в базу данных.
+
+        Args:
+            role_name (str): Название новой роли.
+
+        Returns:
+            int | None: ID новой роли в случае успеха, None при ошибке.
+        """
+        log.debug(f"Добавление новой роли: '{role_name}'")
+
+        # Сначала проверяем, существует ли роль с таким названием
+        existing_id = self.get_id_by_name(role_name)
+        if existing_id is not None:
+            log.warning(
+                f"Роль с названием '{role_name}' уже существует (ID={existing_id}).")
+            return existing_id
+
+        # Выполняем вставку
+        result = self.db.execute_query(
+            "INSERT INTO Roles (RoleName) VALUES (?)", (role_name,))
+        if not result:
+            log.error(f"Ошибка при добавлении роли '{role_name}'.")
+            return None
+
+        # Получаем ID добавленной роли
+        role_id = self.get_id_by_name(role_name)
+        log.info(f"Роль '{role_name}' успешно добавлена с ID={role_id}.")
+        return role_id

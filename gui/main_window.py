@@ -299,21 +299,39 @@ class MainWindow(ctk.CTkFrame):
             self.buttons.append(button)  # Добавляем кнопку в список
             button_y += BUTTON_HEIGHT + BUTTON_Y_SPACING  # Сдвигаем Y для следующей кнопки
 
-        # --- 5. Блок информации о пользователе и переключатель RGB ---
-        user_info_y_pos = 880  # Примерная позиция Y
-        user_info_frame = ctk.CTkFrame(left_frame, fg_color="transparent")
+        # --- 6. Футер (размещаем первым, чтобы он был в самом низу) ---
+        footer_frame = ctk.CTkFrame(left_frame, fg_color="transparent")
+        footer_frame.pack(side="bottom", fill="x", padx=20, pady=(0, 20))
 
+        # Настраиваем колонки внутри footer_frame
+        footer_frame.grid_columnconfigure(0, weight=1)
+        footer_frame.grid_columnconfigure(1, weight=1)
+
+        # Левая часть футера
+        footer_text1 = ctk.CTkLabel(
+            footer_frame, text="Made by Victor", text_color=FOOTER_TEXT_COLOR, font=FOOTER_FONT)
+        footer_text1.grid(row=0, column=0, sticky="w")
+
+        # Правая часть футера
+        footer_text2 = ctk.CTkLabel(
+            footer_frame, text='АСУ "Кадры"\n© 2025 Все права защищены', text_color=FOOTER_TEXT_COLOR, font=FOOTER_FONT)
+        footer_text2.grid(row=0, column=1, sticky="e")
+
+        # --- 5. Блок информации о пользователе и переключатель RGB (размещаем вторым, над футером) ---
+        # Создаем отдельный фрейм для информации пользователя
+        user_info_frame = ctk.CTkFrame(left_frame, fg_color="transparent")
+        user_info_frame.pack(side="bottom", fill="x", padx=20, pady=10)
+
+        # Настраиваем колонки внутри фрейма
         user_info_frame.grid_columnconfigure(
             0, weight=0)  # Колонка для аватара
         # Колонка для имени/роли (растягиваемая)
         user_info_frame.grid_columnconfigure(1, weight=1)
         user_info_frame.grid_columnconfigure(
             2, weight=0)  # Колонка для переключателя
-        user_info_frame.place(x=20, y=user_info_y_pos, anchor="nw")
 
         # Аватар
         try:
-            # TODO: Использовать image_1.png?
             avatar_img = Image.open(relative_to_assets("user.png"))
             avatar_photo = ctk.CTkImage(avatar_img, size=AVATAR_SIZE)
             avatar_label = ctk.CTkLabel(
@@ -341,14 +359,6 @@ class MainWindow(ctk.CTkFrame):
                                    variable=self.rgb_switch_var, onvalue=True, offvalue=False,
                                    width=50)  # Явно задаем ширину
         rgb_switch.grid(row=0, column=2, rowspan=2, padx=(10, 0), sticky="e")
-
-        # --- 6. Футер ---
-        footer_text1 = ctk.CTkLabel(
-            left_frame, text="Made by Victor", text_color=FOOTER_TEXT_COLOR, font=FOOTER_FONT)
-        footer_text1.place(x=20, y=984)
-        footer_text2 = ctk.CTkLabel(
-            left_frame, text='АСУ "Кадры"\n© 2025 Все права защищены', text_color=FOOTER_TEXT_COLOR, font=FOOTER_FONT)
-        footer_text2.place(x=150, y=984)
 
         # --- 7. Основная область контента (контейнер) ---
         content_frame = ctk.CTkFrame(self.master, fg_color=MAIN_BG_COLOR,

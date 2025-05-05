@@ -55,13 +55,13 @@ class UserRepository:
             log.error(f"Ошибка хеширования пароля: {e}", exc_info=True)
             return None
 
-    def verify_password(self, plain_password: str, hashed_password: str) -> bool:
+    def verify_password(self, hashed_password: str, plain_password: str) -> bool:
         """
         Проверяет совпадение пароля в открытом виде с хешем.
 
         Args:
-            plain_password (str): Пароль в открытом виде.
             hashed_password (str): Хеш пароля из базы данных.
+            plain_password (str): Пароль в открытом виде.
 
         Returns:
             bool: True, если пароли совпадают, иначе False.
@@ -163,12 +163,62 @@ class UserRepository:
                           если пользователь не найден.
         """
         log.debug(f"Запрос пользователя по login='{login}' для аутентификации")
-        result = self.db.fetch_one(q.GET_USER_BY_LOGIN_FOR_AUTH, (login,))
+        query = "SELECT * FROM Users WHERE Login = ?"
+        result = self.db.fetch_one(query, (login,))
         if result:
             log.debug(f"Найден пользователь login='{login}'.")
         else:
             log.warning(f"Пользователь login='{login}' не найден.")
         return result
+
+    def insert_user(self, login: str, password: str, employee_pn: str | None, role_id: int, email: str | None) -> int | None:
+        """
+        Добавляет нового пользователя с хешированием пароля.
+
+        Args:
+            login (str): Логин нового пользователя.
+            password (str): Пароль нового пользователя (будет хеширован).
+            employee_pn (str | None): Табельный номер связанного сотрудника или None.
+            role_id (int): ID роли пользователя.
+            email (str | None): Email пользователя или None.
+
+        Returns:
+            int | None: ID нового пользователя в случае успеха, None при ошибке.
+        """
+        log.debug(
+            f"Добавление пользователя: login='{login}', role_id={role_id}")
+
+        # Проверяем, не занят ли логин
+        if self.login_exists(login):
+            log.warning(f"Логин '{login}' уже используется.")
+            return None
+
+        hashed_password = self._hash_password(password)
+        if not hashed_password:
+            log.error("Не удалось хешировать пароль при добавлении пользователя.")
+            return None
+
+        # Выполняем вставку нового пользователя
+        result = self.db.execute_query(
+            "INSERT INTO Users (Login, Password, EmployeePersonnelNumber, RoleID, Email) VALUES (?, ?, ?, ?, ?)",
+            (login, hashed_password, employee_pn, role_id, email)
+        )
+
+        if not result:
+            log.error(f"Ошибка при добавлении пользователя '{login}'.")
+            return None
+
+        # Получаем ID нового пользователя
+        new_user = self.db.fetch_one(
+            "SELECT ID FROM Users WHERE Login = ?", (login,))
+        if not new_user:
+            log.error(
+                f"Не удалось получить ID для вновь созданного пользователя '{login}'.")
+            return None
+
+        user_id = new_user[0]
+        log.info(f"Пользователь '{login}' успешно добавлен с ID={user_id}.")
+        return user_id
 
     def add_user(self, login: str, password: str, role_id: int,
                  employee_pn: str | None, email: str | None) -> bool:
@@ -198,8 +248,25 @@ class UserRepository:
         if result:
             log.info(f"Пользователь '{login}' успешно добавлен.")
         else:
-            log.error(f"Ошибка добавления пользователя '{login}'.")
+            log.error(f"Ошибка при добавлении пользователя '{login}'.")
         return result
+
+    def login_exists(self, login: str) -> bool:
+        """
+        Проверяет, существует ли пользователь с заданным логином.
+
+        Args:
+            login (str): Логин для проверки.
+
+        Returns:
+            bool: True, если пользователь с таким логином существует, иначе False.
+        """
+        log.debug(f"Проверка существования логина: '{login}'")
+        query = "SELECT 1 FROM Users WHERE Login = ? LIMIT 1"
+        result = self.db.fetch_one(query, (login,))
+        exists = result is not None
+        log.debug(f"Результат проверки логина '{login}': {exists}")
+        return exists
 
     def update_user(self, user_id: int, role_id: int, employee_pn: str | None,
                     email: str | None, new_password: str | None = None) -> bool:
