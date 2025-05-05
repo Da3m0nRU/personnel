@@ -157,8 +157,12 @@ class LoginWindow(ctk.CTk):
         user_data = self.user_repository.get_user_by_login(login)
 
         if user_data:
-            user_id, stored_hash, role_id = user_data
-            if self.user_repository.verify_password(password, stored_hash):
+            # Записи в БД имеют структуру (ID, Login, Password, EmployeePN, RoleID, Email)
+            user_id = user_data[0]      # ID
+            stored_hash = user_data[2]  # Password (хеш)
+            role_id = user_data[4]      # RoleID
+
+            if self.user_repository.verify_password(stored_hash, password):
                 log.info(
                     f"Успешный вход пользователя: '{login}' (ID: {user_id}, RoleID: {role_id})")
                 self.logged_in_user_data = {

@@ -170,7 +170,7 @@ def test_verify_password(user_repo):
     assert user is not None
     password_hash = user[2]
 
-    # Проверяем правильный пароль (обратите внимание на порядок аргументов)
+    # Проверяем правильный пароль
     is_verified = user_repo.verify_password(password_hash, password)
     assert is_verified is True
 
