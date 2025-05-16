@@ -49,7 +49,7 @@ def main():
     logged_in_user = login_root.logged_in_user_data
     if logged_in_user:
         log.info("Вход успешен, запуск основного окна.")
-        ctk.set_appearance_mode("System")
+        ctk.set_appearance_mode("Dark")
         ctk.set_default_color_theme("blue")
 
         main_app_root = ctk.CTk()
